@@ -3,7 +3,8 @@ use alloc::collections::BTreeSet;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    GenericArgument, Generics, Ident, PathArguments, Type, TypePath, WherePredicate, parse_quote,
+    GenericArgument, Generics, Ident, PathArguments, ReturnType, Type, TypePath, WherePredicate,
+    parse_quote,
 };
 
 pub struct ImplGenerics {
@@ -99,7 +100,7 @@ fn type_path_mentions_any_type_param(
                     return true;
                 }
 
-                if let syn::ReturnType::Type(_, ty) = &args.output
+                if let ReturnType::Type(_, ty) = &args.output
                     && type_mentions_any_type_param(ty, type_param_names)
                 {
                     return true;

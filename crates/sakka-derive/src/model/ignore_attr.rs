@@ -1,4 +1,4 @@
-use syn::{Expr, Result, meta::ParseNestedMeta};
+use syn::{Expr, Result, Token, meta::ParseNestedMeta};
 
 #[derive(Clone)]
 pub enum IgnoreAttr {
@@ -8,7 +8,7 @@ pub enum IgnoreAttr {
 
 impl IgnoreAttr {
     pub fn parse(meta: &ParseNestedMeta<'_>) -> Result<Self> {
-        if meta.input.peek(syn::Token![=]) {
+        if meta.input.peek(Token![=]) {
             let value = meta.value()?.parse()?;
             Ok(IgnoreAttr::Value(value))
         } else {

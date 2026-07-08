@@ -1,4 +1,4 @@
-use syn::{Expr, Field, Path};
+use syn::{Expr, Field, Path, Result};
 
 use crate::model::{CollectionAttr, IgnoreAttr};
 
@@ -15,7 +15,7 @@ pub struct FieldAttrs {
 }
 
 impl FieldAttrs {
-    pub fn parse(field: &Field) -> syn::Result<Self> {
+    pub fn parse(field: &Field) -> Result<Self> {
         let mut attrs = Self {
             ignore: None,
             encode_with: None,
