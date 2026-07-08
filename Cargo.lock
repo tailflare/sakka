@@ -77,7 +77,7 @@ dependencies = [
 
 [[package]]
 name = "sakka"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "pastey",
  "sakka-derive",
@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "sakka-derive"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -96,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "sakka-test"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "sakka",
  "trybuild",
