@@ -51,6 +51,13 @@ impl FieldInfo {
             ));
         }
 
+        if attrs.ignore.is_some() && (attrs.decode_with.is_some() || attrs.encode_with.is_some()) {
+            return Err(Error::new_spanned(
+                field,
+                "Cannot use #[sakka(ignore)] with #[sakka(decode_with(...))] or #[sakka(encode_with(...))]",
+            ));
+        }
+
         Ok(())
     }
 }

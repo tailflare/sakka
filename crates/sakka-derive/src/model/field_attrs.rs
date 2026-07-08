@@ -11,6 +11,13 @@ pub struct FieldAttrs {
     pub pad_before: Option<Expr>,
     pub pad_after: Option<Expr>,
     pub collection: Option<CollectionAttrs>,
+    pub ignore: Option<IgnoreAttr>,
+}
+
+#[derive(Clone)]
+pub enum IgnoreAttr {
+    Default,
+    Value(Expr),
 }
 
 impl FieldAttrs {
@@ -23,6 +30,7 @@ impl FieldAttrs {
             pad_before: None,
             pad_after: None,
             collection: None,
+            ignore: None,
         };
 
         for attr in &field.attrs {
@@ -66,6 +74,17 @@ impl FieldAttrs {
                         return Err(meta.error("collection already specified"));
                     }
                     attrs.collection = Some(CollectionAttrs::parse(&meta)?);
+                } else if meta.path.is_ident("ignore") {
+                    if attrs.ignore.is_some() {
+                        return Err(meta.error("ignore already specified"));
+                    }
+
+                    if meta.input.peek(syn::Token![=]) {
+                        let value: syn::Expr = meta.value()?.parse()?;
+                        attrs.ignore = Some(IgnoreAttr::Value(value));
+                    } else {
+                        attrs.ignore = Some(IgnoreAttr::Default);
+                    }
                 } else {
                     return Err(meta.error("unknown sakka attribute"));
                 }

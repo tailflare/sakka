@@ -23,7 +23,9 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         let name = &field.name;
 
         // Encode the field
-        let body = if let Some(collection) = &field.attrs.collection {
+        let body = if field.attrs.ignore.is_some() {
+            continue;
+        } else if let Some(collection) = &field.attrs.collection {
             // For collections, use the element type, not the full type
             let elem_ty = match &field.kind {
                 crate::model::FieldKind::Vec { elem, .. } => elem,

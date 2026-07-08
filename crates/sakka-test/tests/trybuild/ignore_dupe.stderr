@@ -1,0 +1,11 @@
+error: ignore already specified
+ --> tests/trybuild/ignore_dupe.rs:5:21
+  |
+5 |     #[sakka(ignore, ignore)]
+  |                     ^^^^^^
+
+error: ignore already specified
+  --> tests/trybuild/ignore_dupe.rs:11:25
+   |
+11 |     #[sakka(ignore = 1, ignore = 2)]
+   |                         ^^^^^^

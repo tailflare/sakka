@@ -8,7 +8,7 @@ use syn::{DeriveInput, Result};
 
 use crate::{
     common,
-    model::{CollectionAttrs, StructInfo},
+    model::{CollectionAttrs, IgnoreAttr, StructInfo},
 };
 
 pub fn expand(input: DeriveInput) -> Result<TokenStream> {
@@ -21,8 +21,22 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
 
     for field in &info.fields {
         let name = &field.name;
+        let ty = field.kind.ty();
 
-        let body = if let Some(collection) = &field.attrs.collection {
+        let body = if let Some(ignore) = &field.attrs.ignore {
+            match ignore {
+                IgnoreAttr::Default => {
+                    quote! {
+                        let #name: #ty = Default::default();
+                    }
+                }
+                IgnoreAttr::Value(value) => {
+                    quote! {
+                        let #name: #ty = #value;
+                    }
+                }
+            }
+        } else if let Some(collection) = &field.attrs.collection {
             // For collections, use the element type, not the full type
             let elem_ty = match &field.kind {
                 crate::model::FieldKind::Vec { elem, .. } => elem,
