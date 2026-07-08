@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Derive macros for sakka, a low-level framework for implementing binary file format parsers and writers."
+readme = "../../README.md"
 
 [lib]
 proc-macro = true
