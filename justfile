@@ -36,8 +36,9 @@ release version:
     cargo +stable publish --dry-run --allow-dirty
     git commit -am "chore: release {{ version }}"
     git tag -a "v{{ version }}" -m "Release {{ version }}"
-    git push origin main --tags
-    @echo "Release {{ version }} complete. CI will now publish the crate to crates.io."
+    git push origin main
+    git push origin "v{{ version }}"
+    @echo "Release {{ version }} tagged. CI will now publish the crate and create the GitHub release."
 
 # Housekeeping
 fmt:
@@ -62,6 +63,9 @@ tidy:
 
 ci_sanity:
     @just sanity
+
+ci_crate_publish:
+    cargo +stable publish --workspace
 
 # Private helpers
 [private]
