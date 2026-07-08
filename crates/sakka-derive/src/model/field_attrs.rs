@@ -1,28 +1,23 @@
 use syn::{Expr, Field, Path};
 
-use crate::model::CollectionAttrs;
+use crate::model::{CollectionAttr, IgnoreAttr};
 
 #[derive(Default, Clone)]
 pub struct FieldAttrs {
+    pub ignore: Option<IgnoreAttr>,
     pub encode_with: Option<Path>,
     pub decode_with: Option<Path>,
     pub align_before: Option<Expr>,
     pub align_after: Option<Expr>,
     pub pad_before: Option<Expr>,
     pub pad_after: Option<Expr>,
-    pub collection: Option<CollectionAttrs>,
-    pub ignore: Option<IgnoreAttr>,
-}
-
-#[derive(Clone)]
-pub enum IgnoreAttr {
-    Default,
-    Value(Expr),
+    pub collection: Option<CollectionAttr>,
 }
 
 impl FieldAttrs {
     pub fn parse(field: &Field) -> syn::Result<Self> {
         let mut attrs = Self {
+            ignore: None,
             encode_with: None,
             decode_with: None,
             align_before: None,
@@ -30,7 +25,6 @@ impl FieldAttrs {
             pad_before: None,
             pad_after: None,
             collection: None,
-            ignore: None,
         };
 
         for attr in &field.attrs {
@@ -39,7 +33,12 @@ impl FieldAttrs {
             }
 
             attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("encode_with") {
+                if meta.path.is_ident("ignore") {
+                    if attrs.ignore.is_some() {
+                        return Err(meta.error("ignore already specified"));
+                    }
+                    attrs.ignore = Some(IgnoreAttr::parse(&meta)?);
+                } else if meta.path.is_ident("encode_with") {
                     if attrs.encode_with.is_some() {
                         return Err(meta.error("encode_with already specified"));
                     }
@@ -73,18 +72,7 @@ impl FieldAttrs {
                     if attrs.collection.is_some() {
                         return Err(meta.error("collection already specified"));
                     }
-                    attrs.collection = Some(CollectionAttrs::parse(&meta)?);
-                } else if meta.path.is_ident("ignore") {
-                    if attrs.ignore.is_some() {
-                        return Err(meta.error("ignore already specified"));
-                    }
-
-                    if meta.input.peek(syn::Token![=]) {
-                        let value: syn::Expr = meta.value()?.parse()?;
-                        attrs.ignore = Some(IgnoreAttr::Value(value));
-                    } else {
-                        attrs.ignore = Some(IgnoreAttr::Default);
-                    }
+                    attrs.collection = Some(CollectionAttr::parse(&meta)?);
                 } else {
                     return Err(meta.error("unknown sakka attribute"));
                 }

@@ -8,7 +8,7 @@ use syn::{DeriveInput, Result};
 
 use crate::{
     common,
-    model::{CollectionAttrs, IgnoreAttr, StructInfo},
+    model::{CollectionAttr, IgnoreAttr, StructInfo},
 };
 
 pub fn expand(input: DeriveInput) -> Result<TokenStream> {
@@ -44,12 +44,12 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             };
 
             match collection {
-                CollectionAttrs::Count(len) => {
+                CollectionAttr::Count(len) => {
                     quote! {
                         let #name = #sakka::ReadCollection::<Ctx>::read_vec::<#elem_ty>(reader, #len)?;
                     }
                 }
-                CollectionAttrs::Prefix(prefix) => {
+                CollectionAttr::Prefix(prefix) => {
                     quote! {
                         let #name = #sakka::ReadCollection::<Ctx>::read_prefixed_vec::<#elem_ty, #prefix>(reader)?;
                     }

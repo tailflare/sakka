@@ -8,7 +8,7 @@ use syn::{DeriveInput, Result};
 
 use crate::{
     common,
-    model::{CollectionAttrs, StructInfo},
+    model::{CollectionAttr, StructInfo},
 };
 
 pub fn expand(input: DeriveInput) -> Result<TokenStream> {
@@ -33,12 +33,12 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             };
 
             match collection {
-                CollectionAttrs::Count(_len) => {
+                CollectionAttr::Count(_len) => {
                     quote! {
                         #sakka::WriteCollection::<Ctx>::write_slice::<#elem_ty>(writer, &self.#name)?;
                     }
                 }
-                CollectionAttrs::Prefix(prefix) => {
+                CollectionAttr::Prefix(prefix) => {
                     quote! {
                         #sakka::WriteCollection::<Ctx>::write_prefixed_slice::<#elem_ty, #prefix>(writer, &self.#name)?;
                     }

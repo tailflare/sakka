@@ -1,13 +1,13 @@
 use syn::{Expr, Result, Type, meta::ParseNestedMeta};
 
 #[derive(Clone)]
-pub enum CollectionAttrs {
+pub enum CollectionAttr {
     Count(Expr),
     Prefix(Type),
 }
 
-impl CollectionAttrs {
-    pub fn parse(meta: &ParseNestedMeta<'_>) -> Result<CollectionAttrs> {
+impl CollectionAttr {
+    pub fn parse(meta: &ParseNestedMeta<'_>) -> Result<CollectionAttr> {
         let mut result = None;
 
         meta.parse_nested_meta(|meta| {
@@ -16,9 +16,9 @@ impl CollectionAttrs {
             }
 
             result = Some(if meta.path.is_ident("count") {
-                CollectionAttrs::Count(meta.value()?.parse()?)
+                CollectionAttr::Count(meta.value()?.parse()?)
             } else if meta.path.is_ident("prefix") {
-                CollectionAttrs::Prefix(meta.value()?.parse()?)
+                CollectionAttr::Prefix(meta.value()?.parse()?)
             } else {
                 return Err(meta.error("unknown collection attribute"));
             });
