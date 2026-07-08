@@ -1,0 +1,43 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+[*.rs]
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+[*.toml]
+indent_style = space
+indent_size = 4
+max_line_length = off
+
+[*.{html,js,ts,scss,css,json,yml,yaml,ksy}]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+[*.md]
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2
+
+[*.{bat,cmd}]
+end_of_line = crlf
+
+[*.lock,{assets,target}/**]
+generated_code = true
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
+max_line_length = unset

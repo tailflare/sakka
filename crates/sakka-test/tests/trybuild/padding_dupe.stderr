@@ -1,0 +1,11 @@
+error: pad_before already specified
+ --> tests/trybuild/padding_dupe.rs:5:29
+  |
+5 |     #[sakka(pad_before = 1, pad_before = 2)]
+  |                             ^^^^^^^^^^
+
+error: pad_after already specified
+  --> tests/trybuild/padding_dupe.rs:11:28
+   |
+11 |     #[sakka(pad_after = 1, pad_after = 2)]
+   |                            ^^^^^^^^^

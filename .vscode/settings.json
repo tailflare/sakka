@@ -1,0 +1,25 @@
+{
+  "[rust]": {
+    "editor.rulers": [
+      100
+    ],
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.inlayHints.enabled": "offUnlessPressed"
+  },
+  "rust-analyzer.cargo.features": "all",
+  "rust-analyzer.check.command": "clippy",
+  "editor.formatOnSave": true,
+  "explorer.compactFolders": true,
+  "files.exclude": {
+    "**/target": true,
+    "**/.git": true
+  },
+  "files.watcherExclude": {
+    "**/target": true,
+    "**/.git": true
+  },
+  "search.exclude": {
+    "**/target": true,
+    "**/.git": true
+  },
+}

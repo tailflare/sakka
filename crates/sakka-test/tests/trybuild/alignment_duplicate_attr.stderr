@@ -1,0 +1,11 @@
+error: align_before already specified
+ --> tests/trybuild/alignment_duplicate_attr.rs:5:31
+  |
+5 |     #[sakka(align_before = 4, align_before = 8)]
+  |                               ^^^^^^^^^^^^
+
+error: align_after already specified
+  --> tests/trybuild/alignment_duplicate_attr.rs:11:30
+   |
+11 |     #[sakka(align_after = 4, align_after = 8)]
+   |                              ^^^^^^^^^^^

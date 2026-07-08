@@ -1,0 +1,20 @@
+[package]
+name = "sakka"
+publish = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A low-level framework for implementing binary file format parsers and writers."
+
+[features]
+default = ["std"]
+
+std = ["thiserror/std"]
+derive = ["dep:sakka-derive"]
+
+[dependencies]
+sakka-derive = { workspace = true, optional = true }
+
+pastey = { workspace = true }
+thiserror = { workspace = true, default-features = false }

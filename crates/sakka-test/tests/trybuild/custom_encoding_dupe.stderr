@@ -1,0 +1,11 @@
+error: encode_with already specified
+  --> tests/trybuild/custom_encoding_dupe.rs:21:37
+   |
+21 |     #[sakka(encode_with = encode_1, encode_with = encode_2)]
+   |                                     ^^^^^^^^^^^
+
+error: decode_with already specified
+  --> tests/trybuild/custom_encoding_dupe.rs:27:37
+   |
+27 |     #[sakka(decode_with = decode_1, decode_with = decode_2)]
+   |                                     ^^^^^^^^^^^

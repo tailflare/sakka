@@ -1,0 +1,5 @@
+error: Vec fields must have a #[sakka(collection(...))] attribute
+ --> tests/trybuild/collection_vec_missing_attr.rs:5:5
+  |
+5 |     data: Vec<u8>,
+  |     ^^^^^^^^^^^^^

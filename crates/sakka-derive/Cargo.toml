@@ -1,0 +1,17 @@
+[package]
+name = "sakka-derive"
+publish = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Derive macros for sakka, a low-level framework for implementing binary file format parsers and writers."
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+proc-macro-crate.workspace = true
+syn.workspace = true
+quote.workspace = true

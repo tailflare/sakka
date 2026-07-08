@@ -1,0 +1,11 @@
+error: collection already specified
+ --> tests/trybuild/collection_duplicate_attr.rs:5:39
+  |
+5 |     #[sakka(collection(prefix = u32), collection(count = 5))]
+  |                                       ^^^^^^^^^^
+
+error: collection may only have one attribute
+  --> tests/trybuild/collection_duplicate_attr.rs:11:38
+   |
+11 |     #[sakka(collection(prefix = u32, prefix = u16))]
+   |                                      ^^^^^^

@@ -1,0 +1,6 @@
+error: Only collection fields can have a #[sakka(collection(...))] attribute
+ --> tests/trybuild/collection_non_vec.rs:5:5
+  |
+5 | /     #[sakka(collection(prefix = u32))]
+6 | |     a: u32,
+  | |__________^
