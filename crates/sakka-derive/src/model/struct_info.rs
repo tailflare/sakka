@@ -1,11 +1,12 @@
 use alloc::{format, vec::Vec};
 
-use syn::{Data, DeriveInput, Error, Fields, Ident, Result};
+use syn::{Data, DeriveInput, Error, Fields, Generics, Ident, Result};
 
 use crate::model::FieldInfo;
 
 pub struct StructInfo {
     pub name: Ident,
+    pub generics: Generics,
     pub kind: StructKind,
     pub fields: Vec<FieldInfo>,
 }
@@ -19,6 +20,7 @@ pub enum StructKind {
 impl StructInfo {
     pub fn parse(input: DeriveInput, direction: &str) -> Result<Self> {
         let name = input.ident;
+        let generics = input.generics;
 
         let (kind, fields) = match input.data {
             Data::Struct(data) => match data.fields {
@@ -50,6 +52,6 @@ impl StructInfo {
             }
         };
 
-        Ok(Self { name, kind, fields })
+        Ok(Self { name, generics, kind, fields })
     }
 }

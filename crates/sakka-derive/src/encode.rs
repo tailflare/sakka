@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Result};
+use syn::{DeriveInput, Result, WherePredicate, parse_quote};
 
 use crate::{
     common,
@@ -16,6 +16,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let info = StructInfo::parse(input, "Encode")?;
 
     let name = &info.name;
+    let mut extra_predicates: Vec<WherePredicate> = Vec::new();
 
     let mut field_encodes = Vec::new();
 
@@ -31,6 +32,10 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
                 crate::model::FieldKind::Vec { elem, .. } => elem,
                 _ => unreachable!("collection attribute validation ensures Vec"),
             };
+
+            if common::type_depends_on_generics(elem_ty, &info.generics) {
+                extra_predicates.push(parse_quote!(#elem_ty: #sakka::Encode<Ctx>));
+            }
 
             match collection {
                 CollectionAttr::Count(_) => {
@@ -56,6 +61,11 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
                 #encode_with(writer, &#access)?;
             }
         } else {
+            let ty = field.kind.ty();
+            if common::type_depends_on_generics(ty, &info.generics) {
+                extra_predicates.push(parse_quote!(#ty: #sakka::Encode<Ctx>));
+            }
+
             quote! {
                 #sakka::Encode::encode(&#access, writer)?;
             }
@@ -77,8 +87,13 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         ));
     }
 
+    let impl_generics = common::build_impl_generics(&info.generics, extra_predicates);
+    let impl_params = &impl_generics.impl_generics;
+    let ty_params = &impl_generics.ty_generics;
+    let where_clause = &impl_generics.where_clause;
+
     Ok(quote! {
-        impl<Ctx> #sakka::Encode<Ctx> for #name {
+        impl #impl_params #sakka::Encode<Ctx> for #name #ty_params #where_clause {
             fn encode(
                 &self,
                 writer: &mut #sakka::Writer<Ctx>

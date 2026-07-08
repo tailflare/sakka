@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Result};
+use syn::{DeriveInput, Result, WherePredicate, parse_quote};
 
 use crate::{
     common,
@@ -16,6 +16,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let info = StructInfo::parse(input, "Decode")?;
 
     let name = &info.name;
+    let mut extra_predicates: Vec<WherePredicate> = Vec::new();
 
     let mut field_decodes = Vec::new();
 
@@ -26,6 +27,10 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         let body = if let Some(ignore) = &field.attrs.ignore {
             match ignore {
                 IgnoreAttr::Default => {
+                    if common::type_depends_on_generics(ty, &info.generics) {
+                        extra_predicates.push(parse_quote!(#ty: ::core::default::Default));
+                    }
+
                     quote! {
                         let #name: #ty = Default::default();
                     }
@@ -42,6 +47,10 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
                 crate::model::FieldKind::Vec { elem, .. } => elem,
                 _ => unreachable!("collection attribute validation ensures Vec"),
             };
+
+            if common::type_depends_on_generics(elem_ty, &info.generics) {
+                extra_predicates.push(parse_quote!(#elem_ty: #sakka::Decode<Ctx>));
+            }
 
             match collection {
                 CollectionAttr::Count(len) => {
@@ -61,6 +70,10 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             }
         } else {
             let ty = &field.kind.ty();
+            if common::type_depends_on_generics(ty, &info.generics) {
+                extra_predicates.push(parse_quote!(#ty: #sakka::Decode<Ctx>));
+            }
+
             quote! {
                 let #name = <#ty as #sakka::Decode<Ctx>>::decode(reader)?;
             }
@@ -83,6 +96,11 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             false,
         ));
     }
+
+    let impl_generics = common::build_impl_generics(&info.generics, extra_predicates);
+    let impl_params = &impl_generics.impl_generics;
+    let ty_params = &impl_generics.ty_generics;
+    let where_clause = &impl_generics.where_clause;
 
     let construct = match info.kind {
         StructKind::Named => {
@@ -112,7 +130,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     };
 
     Ok(quote! {
-        impl<Ctx> #sakka::Decode<Ctx> for #name {
+        impl #impl_params #sakka::Decode<Ctx> for #name #ty_params #where_clause {
             fn decode(reader: &mut #sakka::Reader<'_, Ctx>) -> Result<Self, #sakka::Error> {
                 #(#field_decodes)*
 
