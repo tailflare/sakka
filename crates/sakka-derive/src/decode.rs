@@ -8,7 +8,7 @@ use syn::{DeriveInput, Result};
 
 use crate::{
     common,
-    model::{CollectionAttr, IgnoreAttr, StructInfo},
+    model::{CollectionAttr, FieldAccess, IgnoreAttr, StructInfo, StructKind},
 };
 
 pub fn expand(input: DeriveInput) -> Result<TokenStream> {
@@ -20,7 +20,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let mut field_decodes = Vec::new();
 
     for field in &info.fields {
-        let name = &field.name;
+        let name = &field.local;
         let ty = field.kind.ty();
 
         let body = if let Some(ignore) = &field.attrs.ignore {
@@ -84,16 +84,39 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         ));
     }
 
-    let field_names = info.fields.iter().map(|f| &f.name);
+    let construct = match info.kind {
+        StructKind::Named => {
+            let fields = info.fields.iter().map(|field| {
+                let name = match &field.access {
+                    FieldAccess::Named(name) => name,
+                    _ => unreachable!(),
+                };
+                let local = &field.local;
+
+                quote!(#name: #local)
+            });
+
+            quote!(Self { #(#fields),* })
+        }
+
+        StructKind::Tuple => {
+            let fields = info.fields.iter().map(|field| {
+                let local = &field.local;
+                quote!(#local)
+            });
+
+            quote!(Self(#(#fields),*))
+        }
+
+        StructKind::Unit => quote!(Self),
+    };
 
     Ok(quote! {
         impl<Ctx> #sakka::Decode<Ctx> for #name {
             fn decode(reader: &mut #sakka::Reader<'_, Ctx>) -> Result<Self, #sakka::Error> {
                 #(#field_decodes)*
 
-                Ok(Self {
-                    #(#field_names),*
-                })
+                Ok(#construct)
             }
         }
     })

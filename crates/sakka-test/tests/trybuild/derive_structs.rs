@@ -13,4 +13,10 @@ struct BasicWithNestedStruct {
     nested: BasicStruct,
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct BasicTupleStruct(u32, u16, bool);
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct BasicUnitStruct;
+
 fn main() {}

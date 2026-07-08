@@ -14,6 +14,12 @@ struct BasicWithNestedStruct {
     nested: BasicStruct,
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct BasicTupleStruct(u32, u16, bool);
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct BasicUnitStruct;
+
 #[test]
 fn round_trip_basic_struct() {
     let value = BasicStruct { magic: 0x1234_5678, version: 42, valid: true };
@@ -41,6 +47,36 @@ fn round_trip_basic_with_nested_struct() {
 
     let mut reader = Reader::new(&bytes, Endian::Little, ());
     let decoded: BasicWithNestedStruct = reader.read().unwrap();
+
+    assert_eq!(decoded, value);
+}
+
+#[test]
+fn round_trip_basic_tuple_struct() {
+    let value = BasicTupleStruct(0x1234_5678, 42, true);
+
+    let mut writer = Writer::new(Endian::Little, ());
+    writer.write(&value).unwrap();
+
+    let bytes = writer.finish();
+
+    let mut reader = Reader::new(&bytes, Endian::Little, ());
+    let decoded: BasicTupleStruct = reader.read().unwrap();
+
+    assert_eq!(decoded, value);
+}
+
+#[test]
+fn round_trip_basic_unit_struct() {
+    let value = BasicUnitStruct;
+
+    let mut writer = Writer::new(Endian::Little, ());
+    writer.write(&value).unwrap();
+
+    let bytes = writer.finish();
+
+    let mut reader = Reader::new(&bytes, Endian::Little, ());
+    let decoded: BasicUnitStruct = reader.read().unwrap();
 
     assert_eq!(decoded, value);
 }

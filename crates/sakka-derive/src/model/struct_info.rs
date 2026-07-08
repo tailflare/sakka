@@ -1,36 +1,55 @@
 use alloc::{format, vec::Vec};
 
-use syn::{DeriveInput, Error, Fields, Ident, Result};
+use syn::{Data, DeriveInput, Error, Fields, Ident, Result};
 
 use crate::model::FieldInfo;
 
 pub struct StructInfo {
     pub name: Ident,
+    pub kind: StructKind,
     pub fields: Vec<FieldInfo>,
 }
 
+pub enum StructKind {
+    Named,
+    Tuple,
+    Unit,
+}
+
 impl StructInfo {
-    pub fn parse(input: DeriveInput, kind: &str) -> Result<Self> {
+    pub fn parse(input: DeriveInput, direction: &str) -> Result<Self> {
         let name = input.ident;
 
-        let fields = match input.data {
-            syn::Data::Struct(data) => match data.fields {
-                Fields::Named(fields) => fields.named,
-                _ => {
-                    return Err(Error::new_spanned(
-                        name,
-                        format!("{kind} only supports structs with named fields"),
-                    ));
-                }
+        let (kind, fields) = match input.data {
+            Data::Struct(data) => match data.fields {
+                Fields::Named(fields) => (
+                    StructKind::Named,
+                    fields
+                        .named
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, field)| FieldInfo::parse(i, &field))
+                        .collect::<Result<Vec<_>>>()?,
+                ),
+
+                Fields::Unnamed(fields) => (
+                    StructKind::Tuple,
+                    fields
+                        .unnamed
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, field)| FieldInfo::parse(i, &field))
+                        .collect::<Result<Vec<_>>>()?,
+                ),
+
+                Fields::Unit => (StructKind::Unit, Vec::new()),
             },
+
             _ => {
-                return Err(Error::new_spanned(name, format!("{kind} only supports structs")));
+                return Err(Error::new_spanned(name, format!("{direction} only supports structs")));
             }
         };
 
-        let fields =
-            fields.into_iter().map(|field| FieldInfo::parse(&field)).collect::<Result<Vec<_>>>()?;
-
-        Ok(Self { name, fields })
+        Ok(Self { name, kind, fields })
     }
 }

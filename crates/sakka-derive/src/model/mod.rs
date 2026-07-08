@@ -7,7 +7,7 @@ mod struct_info;
 pub use self::{
     collection_attr::CollectionAttr,
     field_attrs::FieldAttrs,
-    field_info::{FieldInfo, FieldKind},
+    field_info::{FieldAccess, FieldInfo, FieldKind},
     ignore_attr::IgnoreAttr,
-    struct_info::StructInfo,
+    struct_info::{StructInfo, StructKind},
 };

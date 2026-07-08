@@ -1,11 +1,19 @@
-use syn::{Error, Expr, Field, GenericArgument, Ident, PathArguments, Result, Type};
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
+use syn::{Error, Expr, Field, GenericArgument, Ident, Index, PathArguments, Result, Type};
 
 use crate::model::FieldAttrs;
 
 pub struct FieldInfo {
-    pub name: Ident,
+    pub access: FieldAccess,
+    pub local: Ident,
     pub kind: FieldKind,
     pub attrs: FieldAttrs,
+}
+
+pub enum FieldAccess {
+    Named(Ident),
+    Index(Index),
 }
 
 pub enum FieldKind {
@@ -25,13 +33,23 @@ pub enum FieldKind {
 }
 
 impl FieldInfo {
-    pub fn parse(field: &Field) -> Result<Self> {
+    pub fn parse(index: usize, field: &Field) -> Result<Self> {
+        let access = match &field.ident {
+            Some(ident) => FieldAccess::Named(ident.clone()),
+            None => FieldAccess::Index(Index::from(index)),
+        };
+
+        let local = match &access {
+            FieldAccess::Named(ident) => ident.clone(),
+            FieldAccess::Index(index) => format_ident!("__field{}", index),
+        };
+
         let kind = FieldKind::from_field(field)?;
         let attrs = FieldAttrs::parse(field)?;
 
         Self::validate(field, &kind, &attrs)?;
 
-        Ok(Self { name: field.ident.clone().unwrap(), kind, attrs })
+        Ok(Self { access, local, kind, attrs })
     }
 
     fn validate(field: &Field, kind: &FieldKind, attrs: &FieldAttrs) -> Result<()> {
@@ -96,5 +114,14 @@ impl FieldKind {
 
     pub fn is_collection(&self) -> bool {
         matches!(self, FieldKind::Vec { .. })
+    }
+}
+
+impl FieldAccess {
+    pub fn self_access(&self) -> TokenStream {
+        match self {
+            FieldAccess::Named(name) => quote!(self.#name),
+            FieldAccess::Index(index) => quote!(self.#index),
+        }
     }
 }

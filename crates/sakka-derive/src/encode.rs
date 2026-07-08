@@ -20,41 +20,47 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let mut field_encodes = Vec::new();
 
     for field in &info.fields {
-        let name = &field.name;
-
-        // Encode the field
-        let body = if field.attrs.ignore.is_some() {
+        if field.attrs.ignore.is_some() {
             continue;
-        } else if let Some(collection) = &field.attrs.collection {
-            // For collections, use the element type, not the full type
+        }
+
+        let access = field.access.self_access();
+
+        let body = if let Some(collection) = &field.attrs.collection {
             let elem_ty = match &field.kind {
                 crate::model::FieldKind::Vec { elem, .. } => elem,
                 _ => unreachable!("collection attribute validation ensures Vec"),
             };
 
             match collection {
-                CollectionAttr::Count(_len) => {
+                CollectionAttr::Count(_) => {
                     quote! {
-                        #sakka::WriteCollection::<Ctx>::write_slice::<#elem_ty>(writer, &self.#name)?;
+                        #sakka::WriteCollection::<Ctx>::write_slice::<#elem_ty>(
+                            writer,
+                            &#access,
+                        )?;
                     }
                 }
+
                 CollectionAttr::Prefix(prefix) => {
                     quote! {
-                        #sakka::WriteCollection::<Ctx>::write_prefixed_slice::<#elem_ty, #prefix>(writer, &self.#name)?;
+                        #sakka::WriteCollection::<Ctx>::write_prefixed_slice::<#elem_ty, #prefix>(
+                            writer,
+                            &#access,
+                        )?;
                     }
                 }
             }
         } else if let Some(encode_with) = &field.attrs.encode_with {
             quote! {
-                #encode_with(writer, &self.#name)?;
+                #encode_with(writer, &#access)?;
             }
         } else {
             quote! {
-                #sakka::Encode::encode(&self.#name, writer)?;
+                #sakka::Encode::encode(&#access, writer)?;
             }
         };
 
-        // Alignment
         let with_align = common::wrap_alignment(
             quote!(writer),
             field.attrs.align_before.as_ref(),
@@ -62,7 +68,6 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             body,
         );
 
-        // Padding
         field_encodes.push(common::wrap_padding(
             quote!(writer),
             field.attrs.pad_before.as_ref(),
