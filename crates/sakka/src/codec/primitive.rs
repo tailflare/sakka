@@ -3,15 +3,19 @@ macro_rules! impl_codec_primitive {
     ($( $ty:ident => ($read:ident, $write:ident) ),+ $(,)?) => {
         $(
             impl<Ctx> crate::Decode<Ctx> for $ty {
+                type Error = $crate::Error;
+
                 #[inline]
-                fn decode(r: &mut crate::Reader<'_, Ctx>) -> Result<Self, crate::Error> {
+                fn decode(r: &mut crate::Reader<'_, Ctx>) -> Result<Self, Self::Error> {
                     crate::ReadPrimitive::$read(r)
                 }
             }
 
             impl<Ctx> crate::Encode<Ctx> for $ty {
+                type Error = $crate::Error;
+
                 #[inline]
-                fn encode(&self, w: &mut crate::Writer<Ctx>) -> Result<(), crate::Error> {
+                fn encode(&self, w: &mut crate::Writer<Ctx>) -> Result<(), Self::Error> {
                     crate::WritePrimitive::$write(w, *self)
                 }
             }

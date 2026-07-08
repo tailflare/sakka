@@ -14,6 +14,7 @@ use crate::{
 pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let sakka = common::sakka_path()?;
     let info = StructInfo::parse(input, "Decode")?;
+    let error_ty = info.attrs.error.clone().unwrap_or_else(|| parse_quote!(#sakka::Error));
 
     let name = &info.name;
     let mut extra_predicates: Vec<WherePredicate> = Vec::new();
@@ -49,7 +50,8 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             };
 
             if common::type_depends_on_generics(elem_ty, &info.generics) {
-                extra_predicates.push(parse_quote!(#elem_ty: #sakka::Decode<Ctx>));
+                extra_predicates
+                    .push(parse_quote!(#elem_ty: #sakka::Decode<Ctx, Error = #error_ty>));
             }
 
             match collection {
@@ -71,7 +73,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         } else {
             let ty = &field.kind.ty();
             if common::type_depends_on_generics(ty, &info.generics) {
-                extra_predicates.push(parse_quote!(#ty: #sakka::Decode<Ctx>));
+                extra_predicates.push(parse_quote!(#ty: #sakka::Decode<Ctx, Error = #error_ty>));
             }
 
             quote! {
@@ -131,7 +133,9 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
 
     Ok(quote! {
         impl #impl_params #sakka::Decode<Ctx> for #name #ty_params #where_clause {
-            fn decode(reader: &mut #sakka::Reader<'_, Ctx>) -> Result<Self, #sakka::Error> {
+            type Error = #error_ty;
+
+            fn decode(reader: &mut #sakka::Reader<'_, Ctx>) -> Result<Self, Self::Error> {
                 #(#field_decodes)*
 
                 Ok(#construct)

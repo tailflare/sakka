@@ -3,13 +3,14 @@ use crate::{Decode, Encode, Error, ReadPrimitive, Reader, WritePrimitive, Writer
 /// A trait for types that can be read from a [Reader] as an `Option`.
 pub trait ReadOption<Ctx> {
     /// Reads an `Option` from the reader using the provided function to read the inner value.
-    fn read_option_with<T, F>(&mut self, f: F) -> Result<Option<T>, Error>
+    fn read_option_with<T, E, F>(&mut self, f: F) -> Result<Option<T>, E>
     where
-        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, Error>;
+        E: From<Error>,
+        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, E>;
 
     /// Reads an `Option` from the reader using the [Decode] trait to read the inner value.
     #[inline]
-    fn read_option<T>(&mut self) -> Result<Option<T>, Error>
+    fn read_option<T>(&mut self) -> Result<Option<T>, T::Error>
     where
         T: Decode<Ctx>,
     {
@@ -20,13 +21,14 @@ pub trait ReadOption<Ctx> {
 /// A trait for types that can be written to a [Writer] as an `Option`.
 pub trait WriteOption<Ctx> {
     /// Writes an `Option` to the writer using the provided function to write the inner value.
-    fn write_option_with<T, F>(&mut self, value: &Option<T>, f: F) -> Result<(), Error>
+    fn write_option_with<T, E, F>(&mut self, value: &Option<T>, f: F) -> Result<(), E>
     where
-        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), Error>;
+        E: From<Error>,
+        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), E>;
 
     /// Writes an `Option` to the writer using the [Encode] trait to write the inner value.
     #[inline]
-    fn write_option<T>(&mut self, value: &Option<T>) -> Result<(), Error>
+    fn write_option<T>(&mut self, value: &Option<T>) -> Result<(), T::Error>
     where
         T: Encode<Ctx>,
     {
@@ -35,9 +37,10 @@ pub trait WriteOption<Ctx> {
 }
 
 impl<'a, Ctx> ReadOption<Ctx> for Reader<'a, Ctx> {
-    fn read_option_with<T, F>(&mut self, mut f: F) -> Result<Option<T>, Error>
+    fn read_option_with<T, E, F>(&mut self, mut f: F) -> Result<Option<T>, E>
     where
-        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, Error>,
+        E: From<Error>,
+        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, E>,
     {
         let is_some = self.read_bool_byte()?;
         if is_some {
@@ -50,9 +53,10 @@ impl<'a, Ctx> ReadOption<Ctx> for Reader<'a, Ctx> {
 }
 
 impl<Ctx> WriteOption<Ctx> for Writer<Ctx> {
-    fn write_option_with<T, F>(&mut self, value: &Option<T>, mut f: F) -> Result<(), Error>
+    fn write_option_with<T, E, F>(&mut self, value: &Option<T>, mut f: F) -> Result<(), E>
     where
-        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), Error>,
+        E: From<Error>,
+        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), E>,
     {
         match value {
             Some(v) => {

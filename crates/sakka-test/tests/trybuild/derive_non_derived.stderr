@@ -42,3 +42,26 @@ help: the trait `Decode<Ctx>` is not implemented for `BasicNotDerivedStruct`
              i16
              i32
            and $N others
+
+error[E0277]: the trait bound `BasicNotDerivedStruct: Decode<Ctx>` is not satisfied
+ --> tests/trybuild/derive_non_derived.rs:9:36
+  |
+9 | #[derive(Debug, PartialEq, Encode, Decode)]
+  |                                    ^^^^^^ unsatisfied trait bound
+  |
+help: the trait `Decode<Ctx>` is not implemented for `BasicNotDerivedStruct`
+ --> tests/trybuild/derive_non_derived.rs:4:1
+  |
+4 | struct BasicNotDerivedStruct {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = help: the following other types implement trait `Decode<Ctx>`:
+            BasicWithNestedStruct
+            [T; N]
+            bool
+            f32
+            f64
+            i128
+            i16
+            i32
+          and $N others
+  = note: this error originates in the derive macro `Decode` (in Nightly builds, run with -Z macro-backtrace for more info)

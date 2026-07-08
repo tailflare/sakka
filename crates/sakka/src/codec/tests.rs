@@ -9,7 +9,9 @@ struct TestRecord {
 }
 
 impl Encode for TestRecord {
-    fn encode(&self, w: &mut Writer<()>) -> Result<(), Error> {
+    type Error = Error;
+
+    fn encode(&self, w: &mut Writer<()>) -> Result<(), Self::Error> {
         w.write(&self.id)?;
         w.write(&self.tag)?;
         w.write(&self.active)?;
@@ -18,7 +20,9 @@ impl Encode for TestRecord {
 }
 
 impl Decode for TestRecord {
-    fn decode(r: &mut Reader<'_, ()>) -> Result<Self, Error> {
+    type Error = Error;
+
+    fn decode(r: &mut Reader<'_, ()>) -> Result<Self, Self::Error> {
         Ok(Self { id: r.read()?, tag: r.read()?, active: r.read()? })
     }
 }

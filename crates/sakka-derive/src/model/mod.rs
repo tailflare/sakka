@@ -2,6 +2,7 @@ mod collection_attr;
 mod field_attrs;
 mod field_info;
 mod ignore_attr;
+mod struct_attrs;
 mod struct_info;
 
 pub use self::{
@@ -9,5 +10,6 @@ pub use self::{
     field_attrs::FieldAttrs,
     field_info::{FieldAccess, FieldInfo, FieldKind},
     ignore_attr::IgnoreAttr,
+    struct_attrs::StructAttrs,
     struct_info::{StructInfo, StructKind},
 };

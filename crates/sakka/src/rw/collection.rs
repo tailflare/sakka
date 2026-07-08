@@ -17,13 +17,14 @@ pub trait CollectionLength {
 /// A trait for reading collections of data from a reader.
 pub trait ReadCollection<Ctx> {
     /// Reads a vector of elements from the reader using the provided function.
-    fn read_vec_with<T, F>(&mut self, len: usize, f: F) -> Result<Vec<T>, Error>
+    fn read_vec_with<T, E, F>(&mut self, len: usize, f: F) -> Result<Vec<T>, E>
     where
-        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, Error>;
+        E: From<Error>,
+        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, E>;
 
     /// Reads a vector of elements from the reader using the [Decode] trait.
     #[inline]
-    fn read_vec<T>(&mut self, len: usize) -> Result<Vec<T>, Error>
+    fn read_vec<T>(&mut self, len: usize) -> Result<Vec<T>, T::Error>
     where
         T: Decode<Ctx>,
     {
@@ -31,13 +32,14 @@ pub trait ReadCollection<Ctx> {
     }
 
     /// Reads an array of elements from the reader using the provided function.
-    fn read_array_with<T, const N: usize, F>(&mut self, f: F) -> Result<[T; N], Error>
+    fn read_array_with<T, const N: usize, E, F>(&mut self, f: F) -> Result<[T; N], E>
     where
-        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, Error>;
+        E: From<Error>,
+        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, E>;
 
     /// Reads an array of elements from the reader using the [Decode] trait.
     #[inline]
-    fn read_array<T, const N: usize>(&mut self) -> Result<[T; N], Error>
+    fn read_array<T, const N: usize>(&mut self) -> Result<[T; N], T::Error>
     where
         T: Decode<Ctx>,
     {
@@ -46,32 +48,34 @@ pub trait ReadCollection<Ctx> {
 
     /// Reads a vector of elements from the reader with a length prefix, using the provided
     /// function to read each element.
-    fn read_prefixed_vec_with<T, L, F>(&mut self, f: F) -> Result<Vec<T>, Error>
+    fn read_prefixed_vec_with<T, L, E, F>(&mut self, f: F) -> Result<Vec<T>, E>
     where
-        L: Decode<Ctx> + CollectionLength,
-        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, Error>;
+        L: Decode<Ctx, Error = Error> + CollectionLength,
+        E: From<Error>,
+        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, E>;
 
     /// Reads a vector of elements from the reader with a length prefix, using the [Decode] trait to read each element.
     #[inline]
-    fn read_prefixed_vec<T, L>(&mut self) -> Result<Vec<T>, Error>
+    fn read_prefixed_vec<T, L>(&mut self) -> Result<Vec<T>, T::Error>
     where
         T: Decode<Ctx>,
-        L: Decode<Ctx> + CollectionLength,
+        L: Decode<Ctx, Error = Error> + CollectionLength,
     {
-        self.read_prefixed_vec_with::<T, L, _>(T::decode)
+        self.read_prefixed_vec_with::<T, L, _, _>(T::decode)
     }
 }
 
 /// A trait for writing collections of data to a writer.
 pub trait WriteCollection<Ctx> {
     /// Writes a slice of elements to the writer using the provided function.
-    fn write_slice_with<T, F>(&mut self, slice: &[T], f: F) -> Result<(), Error>
+    fn write_slice_with<T, E, F>(&mut self, slice: &[T], f: F) -> Result<(), E>
     where
-        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), Error>;
+        E: From<Error>,
+        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), E>;
 
     /// Writes a slice of elements to the writer using the [Encode] trait.
     #[inline]
-    fn write_slice<T>(&mut self, slice: &[T]) -> Result<(), Error>
+    fn write_slice<T>(&mut self, slice: &[T]) -> Result<(), T::Error>
     where
         T: Encode<Ctx>,
     {
@@ -80,27 +84,31 @@ pub trait WriteCollection<Ctx> {
 
     /// Writes a slice of elements to the writer with a length prefix, using the provided function
     /// to write each element.
-    fn write_prefixed_slice_with<T, L, F>(&mut self, slice: &[T], f: F) -> Result<(), Error>
+    fn write_prefixed_slice_with<T, L, E, F>(&mut self, slice: &[T], f: F) -> Result<(), E>
     where
-        L: Encode<Ctx> + CollectionLength,
-        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), Error>;
+        L: Encode<Ctx, Error = Error> + CollectionLength,
+        E: From<Error>,
+        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), E>;
 
     /// Writes a slice of elements to the writer with a length prefix, using the [Encode] trait to
     /// write each element.
     #[inline]
-    fn write_prefixed_slice<T, L>(&mut self, slice: &[T]) -> Result<(), Error>
+    fn write_prefixed_slice<T, L>(&mut self, slice: &[T]) -> Result<(), T::Error>
     where
         T: Encode<Ctx>,
-        L: Encode<Ctx> + CollectionLength,
+        L: Encode<Ctx, Error = Error> + CollectionLength,
     {
-        self.write_prefixed_slice_with::<T, L, _>(slice, |writer, value| T::encode(value, writer))
+        self.write_prefixed_slice_with::<T, L, _, _>(slice, |writer, value| {
+            T::encode(value, writer)
+        })
     }
 }
 
 impl<'a, Ctx> ReadCollection<Ctx> for Reader<'a, Ctx> {
-    fn read_vec_with<T, F>(&mut self, len: usize, mut f: F) -> Result<Vec<T>, Error>
+    fn read_vec_with<T, E, F>(&mut self, len: usize, mut f: F) -> Result<Vec<T>, E>
     where
-        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, Error>,
+        E: From<Error>,
+        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, E>,
     {
         let mut vec = Vec::with_capacity(len);
         for _ in 0..len {
@@ -110,17 +118,19 @@ impl<'a, Ctx> ReadCollection<Ctx> for Reader<'a, Ctx> {
     }
 
     #[inline]
-    fn read_array_with<T, const N: usize, F>(&mut self, mut f: F) -> Result<[T; N], Error>
+    fn read_array_with<T, const N: usize, E, F>(&mut self, mut f: F) -> Result<[T; N], E>
     where
-        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, Error>,
+        E: From<Error>,
+        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, E>,
     {
         array::try_array_from_fn(|_| f(self))
     }
 
-    fn read_prefixed_vec_with<T, L, F>(&mut self, f: F) -> Result<Vec<T>, Error>
+    fn read_prefixed_vec_with<T, L, E, F>(&mut self, f: F) -> Result<Vec<T>, E>
     where
-        L: Decode<Ctx> + CollectionLength,
-        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, Error>,
+        E: From<Error>,
+        L: Decode<Ctx, Error = Error> + CollectionLength,
+        F: FnMut(&mut Reader<'_, Ctx>) -> Result<T, E>,
     {
         let len: L = self.read()?;
         let len_usize = len.to_usize()?;
@@ -129,9 +139,10 @@ impl<'a, Ctx> ReadCollection<Ctx> for Reader<'a, Ctx> {
 }
 
 impl<Ctx> WriteCollection<Ctx> for Writer<Ctx> {
-    fn write_slice_with<T, F>(&mut self, slice: &[T], mut f: F) -> Result<(), Error>
+    fn write_slice_with<T, E, F>(&mut self, slice: &[T], mut f: F) -> Result<(), E>
     where
-        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), Error>,
+        E: From<Error>,
+        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), E>,
     {
         for value in slice {
             f(self, value)?;
@@ -139,10 +150,11 @@ impl<Ctx> WriteCollection<Ctx> for Writer<Ctx> {
         Ok(())
     }
 
-    fn write_prefixed_slice_with<T, L, F>(&mut self, slice: &[T], f: F) -> Result<(), Error>
+    fn write_prefixed_slice_with<T, L, E, F>(&mut self, slice: &[T], f: F) -> Result<(), E>
     where
-        L: Encode<Ctx> + CollectionLength,
-        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), Error>,
+        L: Encode<Ctx, Error = Error> + CollectionLength,
+        E: From<Error>,
+        F: FnMut(&mut Writer<Ctx>, &T) -> Result<(), E>,
     {
         let len = slice.len();
         let len_prefix = L::try_from_usize(len)?;
@@ -209,7 +221,7 @@ mod tests {
         let vec = reader.read_vec_with(3, |r| r.read_u8()).unwrap();
         assert_eq!(vec, vec![1, 2, 3]);
 
-        let arr = reader.read_array_with::<_, 2, _>(|r| r.read_u8()).unwrap();
+        let arr = reader.read_array_with::<_, 2, _, _>(|r| r.read_u8()).unwrap();
         assert_eq!(arr, [4, 5]);
         assert!(reader.is_eof());
     }

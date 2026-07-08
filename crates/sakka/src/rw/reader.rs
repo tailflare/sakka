@@ -158,10 +158,10 @@ impl<'a, Ctx> Reader<'a, Ctx> {
         Ok(buf)
     }
 
-    /// Reads a value of type `D` from the reader using the `Decode` trait.
+    /// Reads a value of type `T` from the reader using the `Decode` trait.
     #[inline]
-    pub fn read<D: Decode<Ctx>>(&mut self) -> Result<D, Error> {
-        D::decode(self)
+    pub fn read<T: Decode<Ctx>>(&mut self) -> Result<T, T::Error> {
+        T::decode(self)
     }
 
     /// Peeks at the given number of bytes without advancing the reader's position.

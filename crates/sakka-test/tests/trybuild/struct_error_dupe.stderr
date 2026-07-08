@@ -1,0 +1,5 @@
+error: error already specified
+ --> tests/trybuild/struct_error_dupe.rs:4:28
+  |
+4 | #[sakka(error = crate::E1, error = crate::E2)]
+  |                            ^^^^^

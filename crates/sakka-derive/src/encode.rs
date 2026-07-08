@@ -14,6 +14,7 @@ use crate::{
 pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let sakka = common::sakka_path()?;
     let info = StructInfo::parse(input, "Encode")?;
+    let error_ty = info.attrs.error.clone().unwrap_or_else(|| parse_quote!(#sakka::Error));
 
     let name = &info.name;
     let mut extra_predicates: Vec<WherePredicate> = Vec::new();
@@ -34,7 +35,8 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             };
 
             if common::type_depends_on_generics(elem_ty, &info.generics) {
-                extra_predicates.push(parse_quote!(#elem_ty: #sakka::Encode<Ctx>));
+                extra_predicates
+                    .push(parse_quote!(#elem_ty: #sakka::Encode<Ctx, Error = #error_ty>));
             }
 
             match collection {
@@ -63,7 +65,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         } else {
             let ty = field.kind.ty();
             if common::type_depends_on_generics(ty, &info.generics) {
-                extra_predicates.push(parse_quote!(#ty: #sakka::Encode<Ctx>));
+                extra_predicates.push(parse_quote!(#ty: #sakka::Encode<Ctx, Error = #error_ty>));
             }
 
             quote! {
@@ -94,10 +96,12 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
 
     Ok(quote! {
         impl #impl_params #sakka::Encode<Ctx> for #name #ty_params #where_clause {
+            type Error = #error_ty;
+
             fn encode(
                 &self,
                 writer: &mut #sakka::Writer<Ctx>
-            ) -> Result<(), #sakka::Error> {
+            ) -> Result<(), Self::Error> {
                 #(#field_encodes)*
 
                 Ok(())

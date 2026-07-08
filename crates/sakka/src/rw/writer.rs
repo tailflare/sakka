@@ -97,9 +97,9 @@ impl<Ctx> Writer<Ctx> {
         Ok(())
     }
 
-    /// Writes a value of type `D` to the writer using the [Encode] trait.
+    /// Writes a value of type `T` to the writer using the [Encode] trait.
     #[inline]
-    pub fn write<D: Encode<Ctx>>(&mut self, value: &D) -> Result<(), Error> {
+    pub fn write<T: Encode<Ctx>>(&mut self, value: &T) -> Result<(), T::Error> {
         value.encode(self)
     }
 }

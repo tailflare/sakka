@@ -1,10 +1,12 @@
-use crate::{Decode, Encode, Error, ReadCollection, Reader, WriteCollection, Writer};
+use crate::{Decode, Encode, ReadCollection, Reader, WriteCollection, Writer};
 
 impl<Ctx, T, const N: usize> Encode<Ctx> for [T; N]
 where
     T: Encode<Ctx>,
 {
-    fn encode(&self, writer: &mut Writer<Ctx>) -> Result<(), Error> {
+    type Error = T::Error;
+
+    fn encode(&self, writer: &mut Writer<Ctx>) -> Result<(), Self::Error> {
         writer.write_slice(self)
     }
 }
@@ -13,7 +15,9 @@ impl<Ctx, T, const N: usize> Decode<Ctx> for [T; N]
 where
     T: Decode<Ctx>,
 {
-    fn decode(reader: &mut Reader<'_, Ctx>) -> Result<Self, Error> {
+    type Error = T::Error;
+
+    fn decode(reader: &mut Reader<'_, Ctx>) -> Result<Self, Self::Error> {
         reader.read_array()
     }
 }
