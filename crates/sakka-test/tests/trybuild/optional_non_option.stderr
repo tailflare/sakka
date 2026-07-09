@@ -1,0 +1,6 @@
+error: Only Option fields can have a #[sakka(optional(...))] attribute
+ --> tests/trybuild/optional_non_option.rs:5:5
+  |
+5 | /     #[sakka(optional(bool))]
+6 | |     value: u16,
+  | |______________^

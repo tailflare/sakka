@@ -2,16 +2,166 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Generics, Type, WherePredicate, parse_quote};
+use syn::{Generics, Path, Type, WherePredicate, parse_quote};
 
 use crate::{
     common,
-    model::{CollectionAttr, FieldInfo, IgnoreAttr},
+    model::{CollectionAttr, FieldInfo, FieldKind, IgnoreAttr, OptionalAttr},
 };
 
 pub enum FieldAccessMode {
     SelfAccess,
     Binding,
+}
+
+fn wrap_layout(
+    receiver: TokenStream,
+    field: &FieldInfo,
+    body: TokenStream,
+    is_writer: bool,
+) -> TokenStream {
+    let with_align = common::wrap_alignment(
+        receiver.clone(),
+        field.attrs.align_before.as_ref(),
+        field.attrs.align_after.as_ref(),
+        body,
+    );
+
+    common::wrap_padding(
+        receiver,
+        field.attrs.pad_before.as_ref(),
+        field.attrs.pad_after.as_ref(),
+        with_align,
+        is_writer,
+    )
+}
+
+fn collection_from_field(field: &FieldInfo) -> Option<(&CollectionAttr, Type)> {
+    field.attrs.collection.as_ref().map(|collection| {
+        let elem_ty = match &field.kind {
+            FieldKind::Vec { elem, .. } => elem.clone(),
+            _ => unreachable!("collection attribute validation ensures Vec"),
+        };
+        (collection, elem_ty)
+    })
+}
+
+fn optional_collection_from_inner<'a>(
+    field: &'a FieldInfo,
+    inner_ty: &Type,
+) -> Option<(&'a CollectionAttr, Type)> {
+    field.attrs.collection.as_ref().map(|collection| {
+        let elem_ty = common::generic_inner_type(inner_ty, "Vec")
+            .expect("optional Vec validation ensures Option<Vec<_>>");
+        (collection, elem_ty)
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn encode_core(
+    sakka: &TokenStream,
+    context_ty: &Type,
+    error_ty: &Type,
+    generics: &Generics,
+    value_ty: &Type,
+    value_expr: TokenStream,
+    codec: Option<&Path>,
+    encode_with: Option<&Path>,
+    collection: Option<(&CollectionAttr, Type)>,
+    extra_predicates: &mut Vec<WherePredicate>,
+) -> TokenStream {
+    if let Some(codec) = codec {
+        quote! {
+            #codec::encode(#value_expr, writer)?;
+        }
+    } else if let Some(encode_with) = encode_with {
+        quote! {
+            #encode_with(writer, #value_expr)?;
+        }
+    } else if let Some((collection, elem_ty)) = collection {
+        if common::type_depends_on_generics(&elem_ty, generics) {
+            extra_predicates
+                .push(parse_quote!(#elem_ty: #sakka::Encode<#context_ty, Error = #error_ty>));
+        }
+
+        match collection {
+            CollectionAttr::Count(_) => {
+                quote! {
+                    #sakka::WriteCollection::<#context_ty>::write_slice::<#elem_ty>(
+                        writer,
+                        #value_expr,
+                    )?;
+                }
+            }
+            CollectionAttr::Prefix(prefix) => {
+                quote! {
+                    #sakka::WriteCollection::<#context_ty>::write_prefixed_slice::<#elem_ty, #prefix>(
+                        writer,
+                        #value_expr,
+                    )?;
+                }
+            }
+        }
+    } else {
+        if common::type_depends_on_generics(value_ty, generics) {
+            extra_predicates
+                .push(parse_quote!(#value_ty: #sakka::Encode<#context_ty, Error = #error_ty>));
+        }
+
+        quote! {
+            <#value_ty as #sakka::Encode<#context_ty>>::encode(#value_expr, writer)?;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn decode_core(
+    sakka: &TokenStream,
+    context_ty: &Type,
+    error_ty: &Type,
+    generics: &Generics,
+    value_ty: &Type,
+    codec: Option<&Path>,
+    decode_with: Option<&Path>,
+    collection: Option<(&CollectionAttr, Type)>,
+    extra_predicates: &mut Vec<WherePredicate>,
+) -> TokenStream {
+    if let Some(codec) = codec {
+        quote! {
+            #codec::decode(reader)
+        }
+    } else if let Some(decode_with) = decode_with {
+        quote! {
+            #decode_with(reader)
+        }
+    } else if let Some((collection, elem_ty)) = collection {
+        if common::type_depends_on_generics(&elem_ty, generics) {
+            extra_predicates
+                .push(parse_quote!(#elem_ty: #sakka::Decode<#context_ty, Error = #error_ty>));
+        }
+
+        match collection {
+            CollectionAttr::Count(len) => {
+                quote! {
+                    #sakka::ReadCollection::<#context_ty>::read_vec::<#elem_ty>(reader, #len)
+                }
+            }
+            CollectionAttr::Prefix(prefix) => {
+                quote! {
+                    #sakka::ReadCollection::<#context_ty>::read_prefixed_vec::<#elem_ty, #prefix>(reader)
+                }
+            }
+        }
+    } else {
+        if common::type_depends_on_generics(value_ty, generics) {
+            extra_predicates
+                .push(parse_quote!(#value_ty: #sakka::Decode<#context_ty, Error = #error_ty>));
+        }
+
+        quote! {
+            <#value_ty as #sakka::Decode<#context_ty>>::decode(reader)
+        }
+    }
 }
 
 pub fn encode_fields(
@@ -43,70 +193,84 @@ pub fn encode_fields(
             FieldAccessMode::Binding => quote!(#access),
         };
 
-        let body = if let Some(codec) = &field.attrs.codec {
-            quote! {
-                #codec::encode(#access_ref, writer)?;
-            }
-        } else if let Some(encode_with) = &field.attrs.encode_with {
-            quote! {
-                #encode_with(writer, #access_ref)?;
-            }
-        } else if let Some(collection) = &field.attrs.collection {
-            let elem_ty = match &field.kind {
-                crate::model::FieldKind::Vec { elem, .. } => elem,
-                _ => unreachable!("collection attribute validation ensures Vec"),
+        if let Some(optional) = &field.attrs.optional {
+            let inner_ty = match &field.kind {
+                FieldKind::Option { inner, .. } => inner,
+                _ => unreachable!("optional attribute validation ensures Option"),
             };
 
-            if common::type_depends_on_generics(elem_ty, generics) {
-                extra_predicates
-                    .push(parse_quote!(#elem_ty: #sakka::Encode<#context_ty, Error = #error_ty>));
-            }
+            let optional_collection = optional_collection_from_inner(field, inner_ty);
 
-            match collection {
-                CollectionAttr::Count(_) => {
+            let inner_core = encode_core(
+                sakka,
+                context_ty,
+                error_ty,
+                generics,
+                inner_ty,
+                quote!(__sakka_optional_inner),
+                field.attrs.codec.as_ref(),
+                field.attrs.encode_with.as_ref(),
+                optional_collection,
+                &mut extra_predicates,
+            );
+
+            let body = match optional {
+                OptionalAttr::Bool => {
+                    let wrapped = common::wrap_optional(
+                        sakka,
+                        quote!(writer),
+                        optional.clone(),
+                        inner_core,
+                        true,
+                    );
+
+                    wrap_layout(
+                        quote!(writer),
+                        field,
+                        quote! {
+                            let __sakka_optional_value = #access_ref;
+                            #wrapped
+                        },
+                        true,
+                    )
+                }
+                OptionalAttr::Eof => {
+                    let with_layout = wrap_layout(quote!(writer), field, inner_core, true);
+                    let wrapped = common::wrap_optional(
+                        sakka,
+                        quote!(writer),
+                        optional.clone(),
+                        with_layout,
+                        true,
+                    );
+
                     quote! {
-                        #sakka::WriteCollection::<#context_ty>::write_slice::<#elem_ty>(
-                            writer,
-                            #access_ref,
-                        )?;
+                        let __sakka_optional_value = #access_ref;
+                        #wrapped
                     }
                 }
+            };
 
-                CollectionAttr::Prefix(prefix) => {
-                    quote! {
-                        #sakka::WriteCollection::<#context_ty>::write_prefixed_slice::<#elem_ty, #prefix>(
-                            writer,
-                            #access_ref,
-                        )?;
-                    }
-                }
-            }
-        } else {
-            let ty = field.kind.ty();
-            if common::type_depends_on_generics(ty, generics) {
-                extra_predicates
-                    .push(parse_quote!(#ty: #sakka::Encode<#context_ty, Error = #error_ty>));
-            }
+            field_encodes.push(body);
+            continue;
+        }
 
-            quote! {
-                #sakka::Encode::encode(#access_ref, writer)?;
-            }
-        };
+        let collection = collection_from_field(field);
 
-        let with_align = common::wrap_alignment(
-            quote!(writer),
-            field.attrs.align_before.as_ref(),
-            field.attrs.align_after.as_ref(),
-            body,
+        let core = encode_core(
+            sakka,
+            context_ty,
+            error_ty,
+            generics,
+            field.kind.ty(),
+            access_ref,
+            field.attrs.codec.as_ref(),
+            field.attrs.encode_with.as_ref(),
+            collection,
+            &mut extra_predicates,
         );
 
-        field_encodes.push(common::wrap_padding(
-            quote!(writer),
-            field.attrs.pad_before.as_ref(),
-            field.attrs.pad_after.as_ref(),
-            with_align,
-            true,
-        ));
+        field_encodes.push(wrap_layout(quote!(writer), field, core, true));
     }
 
     (field_encodes, extra_predicates)
@@ -126,6 +290,81 @@ pub fn decode_fields(
         let name = &field.local;
         let ty = field.kind.ty();
 
+        if let Some(optional) = &field.attrs.optional {
+            let inner_ty = match &field.kind {
+                FieldKind::Option { inner, .. } => inner,
+                _ => unreachable!("optional attribute validation ensures Option"),
+            };
+
+            let optional_collection = optional_collection_from_inner(field, inner_ty);
+
+            let inner_core = decode_core(
+                sakka,
+                context_ty,
+                error_ty,
+                generics,
+                inner_ty,
+                field.attrs.codec.as_ref(),
+                field.attrs.decode_with.as_ref(),
+                optional_collection,
+                &mut extra_predicates,
+            );
+
+            let body = match optional {
+                OptionalAttr::Bool => {
+                    let with_optional = common::wrap_optional(
+                        sakka,
+                        quote!(reader),
+                        optional.clone(),
+                        inner_core,
+                        false,
+                    );
+
+                    wrap_layout(
+                        quote!(reader),
+                        field,
+                        quote! {
+                            let #name = #with_optional;
+                        },
+                        false,
+                    )
+                }
+                OptionalAttr::Eof => {
+                    let with_layout = wrap_layout(
+                        quote!(reader),
+                        field,
+                        quote! {
+                            let __sakka_optional_inner = (#inner_core)?;
+                        },
+                        false,
+                    );
+
+                    common::wrap_optional(
+                        sakka,
+                        quote!(reader),
+                        optional.clone(),
+                        quote! {
+                            {
+                                #with_layout
+                                Some(__sakka_optional_inner)
+                            }
+                        },
+                        false,
+                    )
+                }
+            };
+
+            if matches!(optional, OptionalAttr::Eof) {
+                field_decodes.push(quote! {
+                    let #name = #body;
+                });
+            } else {
+                field_decodes.push(body);
+            }
+
+            continue;
+        }
+
         let body = if let Some(ignore) = &field.attrs.ignore {
             match ignore {
                 IgnoreAttr::Default => {
@@ -143,62 +382,27 @@ pub fn decode_fields(
                     }
                 }
             }
-        } else if let Some(codec) = &field.attrs.codec {
-            quote! {
-                let #name = #codec::decode(reader)?;
-            }
-        } else if let Some(decode_with) = &field.attrs.decode_with {
-            quote! {
-                let #name = #decode_with(reader)?;
-            }
-        } else if let Some(collection) = &field.attrs.collection {
-            let elem_ty = match &field.kind {
-                crate::model::FieldKind::Vec { elem, .. } => elem,
-                _ => unreachable!("collection attribute validation ensures Vec"),
-            };
-
-            if common::type_depends_on_generics(elem_ty, generics) {
-                extra_predicates
-                    .push(parse_quote!(#elem_ty: #sakka::Decode<#context_ty, Error = #error_ty>));
-            }
-
-            match collection {
-                CollectionAttr::Count(len) => {
-                    quote! {
-                        let #name = #sakka::ReadCollection::<#context_ty>::read_vec::<#elem_ty>(reader, #len)?;
-                    }
-                }
-                CollectionAttr::Prefix(prefix) => {
-                    quote! {
-                        let #name = #sakka::ReadCollection::<#context_ty>::read_prefixed_vec::<#elem_ty, #prefix>(reader)?;
-                    }
-                }
-            }
         } else {
-            if common::type_depends_on_generics(ty, generics) {
-                extra_predicates
-                    .push(parse_quote!(#ty: #sakka::Decode<#context_ty, Error = #error_ty>));
-            }
+            let collection = collection_from_field(field);
+
+            let core = decode_core(
+                sakka,
+                context_ty,
+                error_ty,
+                generics,
+                ty,
+                field.attrs.codec.as_ref(),
+                field.attrs.decode_with.as_ref(),
+                collection,
+                &mut extra_predicates,
+            );
 
             quote! {
-                let #name = <#ty as #sakka::Decode<#context_ty>>::decode(reader)?;
+                let #name = (#core)?;
             }
         };
 
-        let with_align = common::wrap_alignment(
-            quote!(reader),
-            field.attrs.align_before.as_ref(),
-            field.attrs.align_after.as_ref(),
-            body,
-        );
-
-        field_decodes.push(common::wrap_padding(
-            quote!(reader),
-            field.attrs.pad_before.as_ref(),
-            field.attrs.pad_after.as_ref(),
-            with_align,
-            false,
-        ));
+        field_decodes.push(wrap_layout(quote!(reader), field, body, false));
     }
 
     (field_decodes, extra_predicates)

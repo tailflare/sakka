@@ -1,0 +1,5 @@
+error: optional already specified
+ --> tests/trybuild/optional_dupe.rs:5:29
+  |
+5 |     #[sakka(optional(bool), optional(eof))]
+  |                             ^^^^^^^^

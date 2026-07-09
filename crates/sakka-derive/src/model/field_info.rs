@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Error, Field, GenericArgument, Ident, Index, PathArguments, Result, Type};
+use syn::{Error, Field, Ident, Index, Result, Type};
 
-use crate::model::FieldAttrs;
+use crate::{common, model::FieldAttrs};
 
 pub struct FieldInfo {
     pub access: FieldAccess,
@@ -18,8 +18,18 @@ pub enum FieldAccess {
 
 #[allow(clippy::large_enum_variant)]
 pub enum FieldKind {
-    Value { ty: Type },
-    Vec { ty: Type, elem: Type },
+    Value {
+        ty: Type,
+    },
+    Vec {
+        ty: Type,
+        elem: Type,
+    },
+    #[allow(dead_code)]
+    Option {
+        ty: Type,
+        inner: Type,
+    },
 }
 
 impl FieldInfo {
@@ -59,19 +69,39 @@ impl FieldInfo {
             ));
         }
 
-        if let FieldKind::Vec { .. } = kind
-            && attrs.collection.is_none()
-        {
+        let is_vec = matches!(kind, FieldKind::Vec { .. });
+        let is_optional_vec = match kind {
+            FieldKind::Option { inner, .. } => common::generic_inner_type(inner, "Vec").is_some(),
+            _ => false,
+        };
+
+        if is_vec && attrs.collection.is_none() {
             return Err(Error::new_spanned(
                 field,
                 "Vec fields must have a #[sakka(collection(...))] attribute",
             ));
         }
 
-        if attrs.collection.is_some() && !kind.is_collection() {
+        if is_optional_vec && attrs.optional.is_some() && attrs.collection.is_none() {
+            return Err(Error::new_spanned(
+                field,
+                "Option<Vec<_>> fields with #[sakka(optional(...))] must also have a #[sakka(collection(...))] attribute",
+            ));
+        }
+
+        if attrs.collection.is_some()
+            && !(kind.is_collection() || (is_optional_vec && attrs.optional.is_some()))
+        {
             return Err(Error::new_spanned(
                 field,
                 "Only collection fields can have a #[sakka(collection(...))] attribute",
+            ));
+        }
+
+        if attrs.optional.is_some() && !matches!(kind, FieldKind::Option { .. }) {
+            return Err(Error::new_spanned(
+                field,
+                "Only Option fields can have a #[sakka(optional(...))] attribute",
             ));
         }
 
@@ -81,27 +111,24 @@ impl FieldInfo {
 
 impl FieldKind {
     pub fn from_field(field: &Field) -> Result<Self> {
-        match &field.ty {
-            Type::Path(type_path) => {
-                // Check if this is Vec<T>
-                if let Some(segment) = type_path.path.segments.last()
-                    && segment.ident == "Vec"
-                    && let PathArguments::AngleBracketed(args) = &segment.arguments
-                    && let Some(GenericArgument::Type(inner_ty)) = args.args.first()
-                {
-                    return Ok(FieldKind::Vec { ty: field.ty.clone(), elem: inner_ty.clone() });
-                }
+        let ty = field.ty.clone();
 
-                Ok(FieldKind::Value { ty: field.ty.clone() })
-            }
-            _ => Ok(FieldKind::Value { ty: field.ty.clone() }),
+        if let Some(inner) = common::generic_inner_type(&ty, "Option") {
+            return Ok(FieldKind::Option { ty, inner });
         }
+
+        if let Some(elem) = common::generic_inner_type(&ty, "Vec") {
+            return Ok(FieldKind::Vec { ty, elem });
+        }
+
+        Ok(FieldKind::Value { ty })
     }
 
     pub fn ty(&self) -> &Type {
         match self {
             FieldKind::Value { ty } => ty,
             FieldKind::Vec { ty, .. } => ty,
+            FieldKind::Option { ty, .. } => ty,
         }
     }
 

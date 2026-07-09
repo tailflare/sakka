@@ -1,24 +1,37 @@
-error[E0277]: the trait bound `BasicNotDerivedStruct: Encode<_>` is not satisfied
+error[E0277]: the trait bound `BasicNotDerivedStruct: Encode<__SakkaCtx>` is not satisfied
+  --> tests/trybuild/derive_non_derived.rs:13:13
+   |
+13 |     nested: BasicNotDerivedStruct,
+   |             ^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `Encode<__SakkaCtx>` is not implemented for `BasicNotDerivedStruct`
+  --> tests/trybuild/derive_non_derived.rs:4:1
+   |
+ 4 | struct BasicNotDerivedStruct {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: the trait `Encode<__SakkaCtx>` is implemented for `BasicWithNestedStruct`
+  --> tests/trybuild/derive_non_derived.rs:9:28
+   |
+ 9 | #[derive(Debug, PartialEq, Encode, Decode)]
+   |                            ^^^^^^
+   = note: this error originates in the derive macro `Encode` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `BasicNotDerivedStruct: Encode<__SakkaCtx>` is not satisfied
  --> tests/trybuild/derive_non_derived.rs:9:28
   |
 9 | #[derive(Debug, PartialEq, Encode, Decode)]
   |                            ^^^^^^ unsatisfied trait bound
   |
-help: the trait `Encode<_>` is not implemented for `BasicNotDerivedStruct`
+help: the trait `Encode<__SakkaCtx>` is not implemented for `BasicNotDerivedStruct`
  --> tests/trybuild/derive_non_derived.rs:4:1
   |
 4 | struct BasicNotDerivedStruct {
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  = help: the following other types implement trait `Encode<Ctx>`:
-            `BasicWithNestedStruct` implements `Encode<__SakkaCtx>`
-            `[T; N]` implements `Encode<Ctx>`
-            `bool` implements `Encode<Ctx>`
-            `f32` implements `Encode<Ctx>`
-            `f64` implements `Encode<Ctx>`
-            `i128` implements `Encode<Ctx>`
-            `i16` implements `Encode<Ctx>`
-            `i32` implements `Encode<Ctx>`
-          and $N others
+help: the trait `Encode<__SakkaCtx>` is implemented for `BasicWithNestedStruct`
+ --> tests/trybuild/derive_non_derived.rs:9:28
+  |
+9 | #[derive(Debug, PartialEq, Encode, Decode)]
+  |                            ^^^^^^
   = note: this error originates in the derive macro `Encode` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `BasicNotDerivedStruct: Decode<__SakkaCtx>` is not satisfied

@@ -11,6 +11,8 @@ fn derive_cases() {
     t.pass("tests/trybuild/struct_error_valid.rs");
     t.pass("tests/trybuild/struct_context_valid.rs");
     t.pass("tests/trybuild/ignore_valid.rs");
+    t.pass("tests/trybuild/optional_valid.rs");
+    t.pass("tests/trybuild/optional_collection_valid.rs");
 
     t.compile_fail("tests/trybuild/derive_non_derived.rs");
     t.compile_fail("tests/trybuild/collection_vec_missing_attr.rs");
@@ -26,4 +28,7 @@ fn derive_cases() {
     t.compile_fail("tests/trybuild/struct_context_dupe.rs");
     t.compile_fail("tests/trybuild/ignore_dupe.rs");
     t.compile_fail("tests/trybuild/ignore_with_custom_encoding.rs");
+    t.compile_fail("tests/trybuild/optional_non_option.rs");
+    t.compile_fail("tests/trybuild/optional_dupe.rs");
+    t.compile_fail("tests/trybuild/optional_collection_missing_attr.rs");
 }

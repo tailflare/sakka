@@ -1,0 +1,6 @@
+error: Option<Vec<_>> fields with #[sakka(optional(...))] must also have a #[sakka(collection(...))] attribute
+ --> tests/trybuild/optional_collection_missing_attr.rs:5:5
+  |
+5 | /     #[sakka(optional(bool))]
+6 | |     data: Option<Vec<u8>>,
+  | |_________________________^

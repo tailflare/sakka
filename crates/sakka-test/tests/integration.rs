@@ -9,5 +9,6 @@ mod integration {
     mod custom_error;
     mod r#enum;
     mod ignore;
+    mod optional;
     mod padding;
 }

@@ -2,6 +2,8 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Expr;
 
+use crate::model::OptionalAttr;
+
 pub fn wrap_alignment(
     receiver: TokenStream,
     before: Option<&Expr>,
@@ -66,5 +68,49 @@ pub fn wrap_padding(
         #before
         #body
         #after
+    }
+}
+
+pub fn wrap_optional(
+    sakka: &TokenStream,
+    receiver: TokenStream,
+    attr: OptionalAttr,
+    body: TokenStream,
+    is_writer: bool,
+) -> TokenStream {
+    match (attr, is_writer) {
+        (OptionalAttr::Bool, true) => {
+            quote! {
+                #sakka::WriteOption::write_option_with(
+                    #receiver,
+                    __sakka_optional_value,
+                    |#receiver, __sakka_optional_inner| {
+                        #body
+                        Ok(())
+                    },
+                )?;
+            }
+        }
+        (OptionalAttr::Bool, false) => {
+            quote! {
+                #sakka::ReadOption::read_option_with(#receiver, |#receiver| #body)?
+            }
+        }
+        (OptionalAttr::Eof, true) => {
+            quote! {
+                if let Some(__sakka_optional_inner) = __sakka_optional_value {
+                    #body
+                }
+            }
+        }
+        (OptionalAttr::Eof, false) => {
+            quote! {
+                if #receiver.is_eof() {
+                    None
+                } else {
+                    #body
+                }
+            }
+        }
     }
 }

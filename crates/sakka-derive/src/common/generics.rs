@@ -13,6 +13,27 @@ pub struct ImplGenerics {
     pub where_clause: TokenStream,
 }
 
+pub fn generic_inner_type(ty: &Type, name: &str) -> Option<Type> {
+    let Type::Path(type_path) = ty else {
+        return None;
+    };
+
+    let segment = type_path.path.segments.last()?;
+
+    if segment.ident != name {
+        return None;
+    }
+
+    let PathArguments::AngleBracketed(args) = &segment.arguments else {
+        return None;
+    };
+
+    match args.args.first()? {
+        GenericArgument::Type(ty) => Some(ty.clone()),
+        _ => None,
+    }
+}
+
 pub fn build_impl_generics(
     generics: &Generics,
     extra_predicates: impl IntoIterator<Item = WherePredicate>,
