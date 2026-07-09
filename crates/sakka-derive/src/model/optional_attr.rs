@@ -1,4 +1,4 @@
-use syn::{Result, meta::ParseNestedMeta};
+use syn::{Result, Type, meta::ParseNestedMeta};
 
 #[derive(Clone)]
 pub enum OptionalAttr {
@@ -8,6 +8,12 @@ pub enum OptionalAttr {
 
 impl OptionalAttr {
     pub fn parse(meta: &ParseNestedMeta<'_>) -> Result<Self> {
+        if meta.input.peek(syn::Token![=]) {
+            let value: Type = meta.value()?.parse()?;
+            return Self::from_type(&value)
+                .ok_or_else(|| meta.error("expected optional = bool|eof"));
+        }
+
         let mut result = None;
 
         meta.parse_nested_meta(|meta| {
@@ -26,6 +32,22 @@ impl OptionalAttr {
             Ok(())
         })?;
 
-        result.ok_or_else(|| meta.error("expected optional(bool) or optional(eof)"))
+        result.ok_or_else(|| {
+            meta.error("expected optional(bool), optional(eof), optional = bool, or optional = eof")
+        })
+    }
+
+    fn from_type(value: &Type) -> Option<Self> {
+        let Type::Path(path) = value else {
+            return None;
+        };
+
+        if path.path.is_ident("bool") {
+            Some(OptionalAttr::Bool)
+        } else if path.path.is_ident("eof") {
+            Some(OptionalAttr::Eof)
+        } else {
+            None
+        }
     }
 }

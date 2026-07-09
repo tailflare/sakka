@@ -21,6 +21,18 @@ struct OptionalEof {
 }
 
 #[derive(Debug, PartialEq, Encode, Decode)]
+struct OptionalBoolEq {
+    #[sakka(optional = bool)]
+    value: Option<u16>,
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct OptionalEofEq {
+    #[sakka(optional = eof)]
+    value: Option<u16>,
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
 struct OptionalBoolCustom {
     #[sakka(optional(bool), encode_with = encode_u16, decode_with = decode_u16)]
     value: Option<u16>,
