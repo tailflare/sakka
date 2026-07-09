@@ -1,0 +1,5 @@
+error: store already specified
+ --> tests/trybuild/store_dupe.rs:5:30
+  |
+5 |     #[sakka(store = version, store = version)]
+  |                              ^^^^^

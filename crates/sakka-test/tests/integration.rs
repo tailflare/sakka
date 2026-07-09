@@ -3,6 +3,7 @@ mod integration {
     mod basic;
     mod collection;
     mod complex;
+    mod context_store;
     mod custom_codec;
     mod custom_encoding;
     mod custom_encoding_error;

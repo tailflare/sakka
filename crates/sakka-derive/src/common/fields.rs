@@ -57,6 +57,50 @@ fn optional_collection_from_inner<'a>(
     })
 }
 
+fn maybe_store_encoded_field(
+    field: &FieldInfo,
+    value_ref: TokenStream,
+    body: TokenStream,
+    generics: &Generics,
+    extra_predicates: &mut Vec<WherePredicate>,
+) -> TokenStream {
+    let Some(store) = &field.attrs.store else {
+        return body;
+    };
+
+    let field_ty = field.kind.ty();
+    if common::type_depends_on_generics(field_ty, generics) {
+        extra_predicates.push(parse_quote!(#field_ty: ::core::clone::Clone));
+    }
+
+    quote! {
+        #body
+        writer.context_mut().#store = ::core::clone::Clone::clone(#value_ref);
+    }
+}
+
+fn maybe_store_decoded_field(
+    field: &FieldInfo,
+    local: &syn::Ident,
+    body: TokenStream,
+    generics: &Generics,
+    extra_predicates: &mut Vec<WherePredicate>,
+) -> TokenStream {
+    let Some(store) = &field.attrs.store else {
+        return body;
+    };
+
+    let field_ty = field.kind.ty();
+    if common::type_depends_on_generics(field_ty, generics) {
+        extra_predicates.push(parse_quote!(#field_ty: ::core::clone::Clone));
+    }
+
+    quote! {
+        #body
+        reader.context_mut().#store = ::core::clone::Clone::clone(&#local);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn encode_core(
     sakka: &TokenStream,
@@ -251,7 +295,13 @@ pub fn encode_fields(
                 }
             };
 
-            field_encodes.push(body);
+            field_encodes.push(maybe_store_encoded_field(
+                field,
+                quote!(__sakka_optional_value),
+                body,
+                generics,
+                &mut extra_predicates,
+            ));
             continue;
         }
 
@@ -263,14 +313,21 @@ pub fn encode_fields(
             error_ty,
             generics,
             field.kind.ty(),
-            access_ref,
+            access_ref.clone(),
             field.attrs.codec.as_ref(),
             field.attrs.encode_with.as_ref(),
             collection,
             &mut extra_predicates,
         );
 
-        field_encodes.push(wrap_layout(quote!(writer), field, core, true));
+        let body = wrap_layout(quote!(writer), field, core, true);
+        field_encodes.push(maybe_store_encoded_field(
+            field,
+            access_ref,
+            body,
+            generics,
+            &mut extra_predicates,
+        ));
     }
 
     (field_encodes, extra_predicates)
@@ -355,11 +412,24 @@ pub fn decode_fields(
             };
 
             if matches!(optional, OptionalAttr::Eof) {
-                field_decodes.push(quote! {
+                let body = quote! {
                     let #name = #body;
-                });
+                };
+                field_decodes.push(maybe_store_decoded_field(
+                    field,
+                    name,
+                    body,
+                    generics,
+                    &mut extra_predicates,
+                ));
             } else {
-                field_decodes.push(body);
+                field_decodes.push(maybe_store_decoded_field(
+                    field,
+                    name,
+                    body,
+                    generics,
+                    &mut extra_predicates,
+                ));
             }
 
             continue;
@@ -402,7 +472,14 @@ pub fn decode_fields(
             }
         };
 
-        field_decodes.push(wrap_layout(quote!(reader), field, body, false));
+        let body = wrap_layout(quote!(reader), field, body, false);
+        field_decodes.push(maybe_store_decoded_field(
+            field,
+            name,
+            body,
+            generics,
+            &mut extra_predicates,
+        ));
     }
 
     (field_decodes, extra_predicates)
