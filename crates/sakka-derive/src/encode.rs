@@ -4,25 +4,31 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Result, Type, WherePredicate, parse_quote};
+use syn::{DeriveInput, Result, WherePredicate, parse_quote};
 
 use crate::{
     common,
-    model::{CollectionAttr, StructInfo},
+    model::{CollectionAttr, TypeInfo, TypeKind},
 };
 
 pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let sakka = common::sakka_path()?;
-    let info = StructInfo::parse(input, "Encode")?;
-    let error_ty = info.attrs.error.clone().unwrap_or_else(|| parse_quote!(#sakka::Error));
-    let context_ty: Type = info
-        .attrs
-        .context
-        .clone()
-        .map(|context| parse_quote!(#context))
-        .unwrap_or_else(|| parse_quote!(Ctx));
+    let type_info = TypeInfo::parse(input, "Encode")?;
 
-    let name = &info.name;
+    match &type_info.kind {
+        TypeKind::Struct(info) => expand_struct(&sakka, &type_info, info),
+    }
+}
+
+fn expand_struct(
+    sakka: &TokenStream,
+    type_info: &TypeInfo,
+    info: &crate::model::StructInfo,
+) -> Result<TokenStream> {
+    let error_ty = type_info.attrs.error_type(sakka);
+    let context_ty = type_info.attrs.context_type();
+
+    let name = &type_info.name;
     let mut extra_predicates: Vec<WherePredicate> = Vec::new();
 
     let mut field_encodes = Vec::new();
@@ -48,7 +54,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
                 _ => unreachable!("collection attribute validation ensures Vec"),
             };
 
-            if common::type_depends_on_generics(elem_ty, &info.generics) {
+            if common::type_depends_on_generics(elem_ty, &type_info.generics) {
                 extra_predicates
                     .push(parse_quote!(#elem_ty: #sakka::Encode<#context_ty, Error = #error_ty>));
             }
@@ -74,7 +80,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             }
         } else {
             let ty = field.kind.ty();
-            if common::type_depends_on_generics(ty, &info.generics) {
+            if common::type_depends_on_generics(ty, &type_info.generics) {
                 extra_predicates
                     .push(parse_quote!(#ty: #sakka::Encode<#context_ty, Error = #error_ty>));
             }
@@ -100,8 +106,11 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         ));
     }
 
-    let impl_generics =
-        common::build_impl_generics(&info.generics, extra_predicates, info.attrs.context.is_none());
+    let impl_generics = common::build_impl_generics(
+        &type_info.generics,
+        extra_predicates,
+        type_info.attrs.include_ctx_generic(),
+    );
     let impl_params = &impl_generics.impl_generics;
     let ty_params = &impl_generics.ty_generics;
     let where_clause = &impl_generics.where_clause;

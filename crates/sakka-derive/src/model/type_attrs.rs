@@ -1,12 +1,13 @@
-use syn::{DeriveInput, Path, Result};
+use proc_macro2::TokenStream;
+use syn::{DeriveInput, Path, Result, Type, parse_quote};
 
 #[derive(Default, Clone)]
-pub struct StructAttrs {
+pub struct TypeAttrs {
     pub error: Option<Path>,
     pub context: Option<Path>,
 }
 
-impl StructAttrs {
+impl TypeAttrs {
     pub fn parse(input: &DeriveInput) -> Result<Self> {
         let mut attrs = Self { error: None, context: None };
 
@@ -35,5 +36,23 @@ impl StructAttrs {
         }
 
         Ok(attrs)
+    }
+
+    pub fn error_type(&self, sakka: &TokenStream) -> Type {
+        self.error
+            .clone()
+            .map(|error| parse_quote!(#error))
+            .unwrap_or_else(|| parse_quote!(#sakka::Error))
+    }
+
+    pub fn context_type(&self) -> Type {
+        self.context
+            .clone()
+            .map(|context| parse_quote!(#context))
+            .unwrap_or_else(|| parse_quote!(Ctx))
+    }
+
+    pub fn include_ctx_generic(&self) -> bool {
+        self.context.is_none()
     }
 }
