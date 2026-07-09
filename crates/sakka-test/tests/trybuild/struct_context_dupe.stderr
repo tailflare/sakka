@@ -1,0 +1,5 @@
+error: context already specified
+ --> tests/trybuild/struct_context_dupe.rs:4:30
+  |
+4 | #[sakka(context = crate::C1, context = crate::C2)]
+  |                              ^^^^^^^

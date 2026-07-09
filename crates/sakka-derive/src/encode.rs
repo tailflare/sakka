@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Result, WherePredicate, parse_quote};
+use syn::{DeriveInput, Result, Type, WherePredicate, parse_quote};
 
 use crate::{
     common,
@@ -15,6 +15,12 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let sakka = common::sakka_path()?;
     let info = StructInfo::parse(input, "Encode")?;
     let error_ty = info.attrs.error.clone().unwrap_or_else(|| parse_quote!(#sakka::Error));
+    let context_ty: Type = info
+        .attrs
+        .context
+        .clone()
+        .map(|context| parse_quote!(#context))
+        .unwrap_or_else(|| parse_quote!(Ctx));
 
     let name = &info.name;
     let mut extra_predicates: Vec<WherePredicate> = Vec::new();
@@ -44,13 +50,13 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
 
             if common::type_depends_on_generics(elem_ty, &info.generics) {
                 extra_predicates
-                    .push(parse_quote!(#elem_ty: #sakka::Encode<Ctx, Error = #error_ty>));
+                    .push(parse_quote!(#elem_ty: #sakka::Encode<#context_ty, Error = #error_ty>));
             }
 
             match collection {
                 CollectionAttr::Count(_) => {
                     quote! {
-                        #sakka::WriteCollection::<Ctx>::write_slice::<#elem_ty>(
+                        #sakka::WriteCollection::<#context_ty>::write_slice::<#elem_ty>(
                             writer,
                             &#access,
                         )?;
@@ -59,7 +65,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
 
                 CollectionAttr::Prefix(prefix) => {
                     quote! {
-                        #sakka::WriteCollection::<Ctx>::write_prefixed_slice::<#elem_ty, #prefix>(
+                        #sakka::WriteCollection::<#context_ty>::write_prefixed_slice::<#elem_ty, #prefix>(
                             writer,
                             &#access,
                         )?;
@@ -69,7 +75,8 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         } else {
             let ty = field.kind.ty();
             if common::type_depends_on_generics(ty, &info.generics) {
-                extra_predicates.push(parse_quote!(#ty: #sakka::Encode<Ctx, Error = #error_ty>));
+                extra_predicates
+                    .push(parse_quote!(#ty: #sakka::Encode<#context_ty, Error = #error_ty>));
             }
 
             quote! {
@@ -93,18 +100,19 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         ));
     }
 
-    let impl_generics = common::build_impl_generics(&info.generics, extra_predicates);
+    let impl_generics =
+        common::build_impl_generics(&info.generics, extra_predicates, info.attrs.context.is_none());
     let impl_params = &impl_generics.impl_generics;
     let ty_params = &impl_generics.ty_generics;
     let where_clause = &impl_generics.where_clause;
 
     Ok(quote! {
-        impl #impl_params #sakka::Encode<Ctx> for #name #ty_params #where_clause {
+        impl #impl_params #sakka::Encode<#context_ty> for #name #ty_params #where_clause {
             type Error = #error_ty;
 
             fn encode(
                 &self,
-                writer: &mut #sakka::Writer<Ctx>
+                writer: &mut #sakka::Writer<#context_ty>
             ) -> Result<(), Self::Error> {
                 #(#field_encodes)*
 

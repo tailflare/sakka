@@ -16,9 +16,12 @@ pub struct ImplGenerics {
 pub fn build_impl_generics(
     generics: &Generics,
     extra_predicates: impl IntoIterator<Item = WherePredicate>,
+    include_ctx: bool,
 ) -> ImplGenerics {
     let mut impl_generics = generics.clone();
-    impl_generics.params.insert(0, parse_quote!(Ctx));
+    if include_ctx {
+        impl_generics.params.insert(0, parse_quote!(Ctx));
+    }
     impl_generics.make_where_clause().predicates.extend(extra_predicates);
 
     let (impl_generics, _, where_clause) = impl_generics.split_for_impl();

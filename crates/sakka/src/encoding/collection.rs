@@ -6,6 +6,7 @@ where
 {
     type Error = T::Error;
 
+    #[inline]
     fn encode(&self, writer: &mut Writer<Ctx>) -> Result<(), Self::Error> {
         writer.write_slice(self)
     }
@@ -17,6 +18,7 @@ where
 {
     type Error = T::Error;
 
+    #[inline]
     fn decode(reader: &mut Reader<'_, Ctx>) -> Result<Self, Self::Error> {
         reader.read_array()
     }

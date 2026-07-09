@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Result, WherePredicate, parse_quote};
+use syn::{DeriveInput, Result, Type, WherePredicate, parse_quote};
 
 use crate::{
     common,
@@ -15,6 +15,12 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     let sakka = common::sakka_path()?;
     let info = StructInfo::parse(input, "Decode")?;
     let error_ty = info.attrs.error.clone().unwrap_or_else(|| parse_quote!(#sakka::Error));
+    let context_ty: Type = info
+        .attrs
+        .context
+        .clone()
+        .map(|context| parse_quote!(#context))
+        .unwrap_or_else(|| parse_quote!(Ctx));
 
     let name = &info.name;
     let mut extra_predicates: Vec<WherePredicate> = Vec::new();
@@ -59,29 +65,30 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
 
             if common::type_depends_on_generics(elem_ty, &info.generics) {
                 extra_predicates
-                    .push(parse_quote!(#elem_ty: #sakka::Decode<Ctx, Error = #error_ty>));
+                    .push(parse_quote!(#elem_ty: #sakka::Decode<#context_ty, Error = #error_ty>));
             }
 
             match collection {
                 CollectionAttr::Count(len) => {
                     quote! {
-                        let #name = #sakka::ReadCollection::<Ctx>::read_vec::<#elem_ty>(reader, #len)?;
+                        let #name = #sakka::ReadCollection::<#context_ty>::read_vec::<#elem_ty>(reader, #len)?;
                     }
                 }
                 CollectionAttr::Prefix(prefix) => {
                     quote! {
-                        let #name = #sakka::ReadCollection::<Ctx>::read_prefixed_vec::<#elem_ty, #prefix>(reader)?;
+                        let #name = #sakka::ReadCollection::<#context_ty>::read_prefixed_vec::<#elem_ty, #prefix>(reader)?;
                     }
                 }
             }
         } else {
             let ty = &field.kind.ty();
             if common::type_depends_on_generics(ty, &info.generics) {
-                extra_predicates.push(parse_quote!(#ty: #sakka::Decode<Ctx, Error = #error_ty>));
+                extra_predicates
+                    .push(parse_quote!(#ty: #sakka::Decode<#context_ty, Error = #error_ty>));
             }
 
             quote! {
-                let #name = <#ty as #sakka::Decode<Ctx>>::decode(reader)?;
+                let #name = <#ty as #sakka::Decode<#context_ty>>::decode(reader)?;
             }
         };
 
@@ -103,7 +110,8 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         ));
     }
 
-    let impl_generics = common::build_impl_generics(&info.generics, extra_predicates);
+    let impl_generics =
+        common::build_impl_generics(&info.generics, extra_predicates, info.attrs.context.is_none());
     let impl_params = &impl_generics.impl_generics;
     let ty_params = &impl_generics.ty_generics;
     let where_clause = &impl_generics.where_clause;
@@ -136,10 +144,10 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
     };
 
     Ok(quote! {
-        impl #impl_params #sakka::Decode<Ctx> for #name #ty_params #where_clause {
+        impl #impl_params #sakka::Decode<#context_ty> for #name #ty_params #where_clause {
             type Error = #error_ty;
 
-            fn decode(reader: &mut #sakka::Reader<'_, Ctx>) -> Result<Self, Self::Error> {
+            fn decode(reader: &mut #sakka::Reader<'_, #context_ty>) -> Result<Self, Self::Error> {
                 #(#field_decodes)*
 
                 Ok(#construct)

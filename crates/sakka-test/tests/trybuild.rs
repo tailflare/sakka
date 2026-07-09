@@ -9,6 +9,7 @@ fn derive_cases() {
     t.pass("tests/trybuild/custom_encoding_valid.rs");
     t.pass("tests/trybuild/custom_codec_valid.rs");
     t.pass("tests/trybuild/struct_error_valid.rs");
+    t.pass("tests/trybuild/struct_context_valid.rs");
     t.pass("tests/trybuild/ignore_valid.rs");
 
     t.compile_fail("tests/trybuild/derive_non_derived.rs");
@@ -22,6 +23,7 @@ fn derive_cases() {
     t.compile_fail("tests/trybuild/custom_codec_dupe.rs");
     t.compile_fail("tests/trybuild/custom_codec_with_custom_encoding.rs");
     t.compile_fail("tests/trybuild/struct_error_dupe.rs");
+    t.compile_fail("tests/trybuild/struct_context_dupe.rs");
     t.compile_fail("tests/trybuild/ignore_dupe.rs");
     t.compile_fail("tests/trybuild/ignore_with_custom_encoding.rs");
 }
