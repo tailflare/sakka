@@ -5,6 +5,7 @@ use crate::model::{CollectionAttr, IgnoreAttr};
 #[derive(Default, Clone)]
 pub struct FieldAttrs {
     pub ignore: Option<IgnoreAttr>,
+    pub codec: Option<Path>,
     pub encode_with: Option<Path>,
     pub decode_with: Option<Path>,
     pub align_before: Option<Expr>,
@@ -18,6 +19,7 @@ impl FieldAttrs {
     pub fn parse(field: &Field) -> Result<Self> {
         let mut attrs = Self {
             ignore: None,
+            codec: None,
             encode_with: None,
             decode_with: None,
             align_before: None,
@@ -38,6 +40,11 @@ impl FieldAttrs {
                         return Err(meta.error("ignore already specified"));
                     }
                     attrs.ignore = Some(IgnoreAttr::parse(&meta)?);
+                } else if meta.path.is_ident("codec") {
+                    if attrs.codec.is_some() {
+                        return Err(meta.error("codec already specified"));
+                    }
+                    attrs.codec = Some(meta.value()?.parse()?);
                 } else if meta.path.is_ident("encode_with") {
                     if attrs.encode_with.is_some() {
                         return Err(meta.error("encode_with already specified"));

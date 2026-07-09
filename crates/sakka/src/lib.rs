@@ -3,8 +3,8 @@
 
 extern crate alloc;
 
-mod codec;
 mod common;
+mod encoding;
 mod error;
 mod rw;
 
@@ -12,8 +12,8 @@ mod rw;
 pub use sakka_derive::{Decode, Encode};
 
 pub use self::{
-    codec::{Decode, Encode},
     common::Endian,
+    encoding::{Codec, Decode, Encode},
     error::Error,
     rw::{
         CollectionLength, ReadCollection, ReadOption, ReadPrimitive, Reader, WriteCollection,

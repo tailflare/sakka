@@ -1,3 +1,4 @@
+mod codec;
 mod collection;
 #[allow(clippy::module_inception)]
 mod decode;
@@ -6,4 +7,4 @@ mod primitive;
 #[cfg(test)]
 mod tests;
 
-pub use self::{decode::Decode, encode::Encode};
+pub use self::{codec::Codec, decode::Decode, encode::Encode};

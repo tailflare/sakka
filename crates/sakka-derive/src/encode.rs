@@ -28,7 +28,15 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
 
         let access = field.access.self_access();
 
-        let body = if let Some(collection) = &field.attrs.collection {
+        let body = if let Some(codec) = &field.attrs.codec {
+            quote! {
+                #codec::encode(&#access, writer)?;
+            }
+        } else if let Some(encode_with) = &field.attrs.encode_with {
+            quote! {
+                #encode_with(writer, &#access)?;
+            }
+        } else if let Some(collection) = &field.attrs.collection {
             let elem_ty = match &field.kind {
                 crate::model::FieldKind::Vec { elem, .. } => elem,
                 _ => unreachable!("collection attribute validation ensures Vec"),
@@ -57,10 +65,6 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
                         )?;
                     }
                 }
-            }
-        } else if let Some(encode_with) = &field.attrs.encode_with {
-            quote! {
-                #encode_with(writer, &#access)?;
             }
         } else {
             let ty = field.kind.ty();

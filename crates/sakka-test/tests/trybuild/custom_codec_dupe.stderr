@@ -1,0 +1,5 @@
+error: codec already specified
+ --> tests/trybuild/custom_codec_dupe.rs:8:29
+  |
+8 |     #[sakka(codec = CodecA, codec = CodecB)]
+  |                             ^^^^^

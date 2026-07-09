@@ -42,6 +42,14 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
                     }
                 }
             }
+        } else if let Some(codec) = &field.attrs.codec {
+            quote! {
+                let #name = #codec::decode(reader)?;
+            }
+        } else if let Some(decode_with) = &field.attrs.decode_with {
+            quote! {
+                let #name = #decode_with(reader)?;
+            }
         } else if let Some(collection) = &field.attrs.collection {
             // For collections, use the element type, not the full type
             let elem_ty = match &field.kind {
@@ -65,10 +73,6 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
                         let #name = #sakka::ReadCollection::<Ctx>::read_prefixed_vec::<#elem_ty, #prefix>(reader)?;
                     }
                 }
-            }
-        } else if let Some(decode_with) = &field.attrs.decode_with {
-            quote! {
-                let #name = #decode_with(reader)?;
             }
         } else {
             let ty = &field.kind.ty();
