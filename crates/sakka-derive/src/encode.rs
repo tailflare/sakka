@@ -4,11 +4,11 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Result, WherePredicate, parse_quote};
+use syn::{DeriveInput, Result, WherePredicate};
 
 use crate::{
     common,
-    model::{CollectionAttr, TypeInfo, TypeKind},
+    model::{EnumInfo, TypeInfo, TypeKind},
 };
 
 pub fn expand(input: DeriveInput) -> Result<TokenStream> {
@@ -17,6 +17,7 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
 
     match &type_info.kind {
         TypeKind::Struct(info) => expand_struct(&sakka, &type_info, info),
+        TypeKind::Enum(enum_info) => expand_enum(&sakka, &type_info, enum_info),
     }
 }
 
@@ -30,81 +31,15 @@ fn expand_struct(
 
     let name = &type_info.name;
     let mut extra_predicates: Vec<WherePredicate> = Vec::new();
-
-    let mut field_encodes = Vec::new();
-
-    for field in &info.fields {
-        if field.attrs.ignore.is_some() {
-            continue;
-        }
-
-        let access = field.access.self_access();
-
-        let body = if let Some(codec) = &field.attrs.codec {
-            quote! {
-                #codec::encode(&#access, writer)?;
-            }
-        } else if let Some(encode_with) = &field.attrs.encode_with {
-            quote! {
-                #encode_with(writer, &#access)?;
-            }
-        } else if let Some(collection) = &field.attrs.collection {
-            let elem_ty = match &field.kind {
-                crate::model::FieldKind::Vec { elem, .. } => elem,
-                _ => unreachable!("collection attribute validation ensures Vec"),
-            };
-
-            if common::type_depends_on_generics(elem_ty, &type_info.generics) {
-                extra_predicates
-                    .push(parse_quote!(#elem_ty: #sakka::Encode<#context_ty, Error = #error_ty>));
-            }
-
-            match collection {
-                CollectionAttr::Count(_) => {
-                    quote! {
-                        #sakka::WriteCollection::<#context_ty>::write_slice::<#elem_ty>(
-                            writer,
-                            &#access,
-                        )?;
-                    }
-                }
-
-                CollectionAttr::Prefix(prefix) => {
-                    quote! {
-                        #sakka::WriteCollection::<#context_ty>::write_prefixed_slice::<#elem_ty, #prefix>(
-                            writer,
-                            &#access,
-                        )?;
-                    }
-                }
-            }
-        } else {
-            let ty = field.kind.ty();
-            if common::type_depends_on_generics(ty, &type_info.generics) {
-                extra_predicates
-                    .push(parse_quote!(#ty: #sakka::Encode<#context_ty, Error = #error_ty>));
-            }
-
-            quote! {
-                #sakka::Encode::encode(&#access, writer)?;
-            }
-        };
-
-        let with_align = common::wrap_alignment(
-            quote!(writer),
-            field.attrs.align_before.as_ref(),
-            field.attrs.align_after.as_ref(),
-            body,
-        );
-
-        field_encodes.push(common::wrap_padding(
-            quote!(writer),
-            field.attrs.pad_before.as_ref(),
-            field.attrs.pad_after.as_ref(),
-            with_align,
-            true,
-        ));
-    }
+    let (field_encodes, field_predicates) = common::encode_fields(
+        sakka,
+        &context_ty,
+        &error_ty,
+        &type_info.generics,
+        &info.fields,
+        common::FieldAccessMode::SelfAccess,
+    );
+    extra_predicates.extend(field_predicates);
 
     let impl_generics = common::build_impl_generics(
         &type_info.generics,
@@ -124,6 +59,69 @@ fn expand_struct(
                 writer: &mut #sakka::Writer<#context_ty>
             ) -> Result<(), Self::Error> {
                 #(#field_encodes)*
+
+                Ok(())
+            }
+        }
+    })
+}
+
+fn expand_enum(
+    sakka: &TokenStream,
+    type_info: &TypeInfo,
+    enum_info: &EnumInfo,
+) -> Result<TokenStream> {
+    let error_ty = type_info.attrs.error_type(sakka);
+    let context_ty = type_info.attrs.context_type();
+    let tag_ty = enum_info.attrs.tag_type();
+    let (_, write_tag) = enum_info.attrs.tag_primitive_methods()?;
+
+    let name = &type_info.name;
+    let mut extra_predicates: Vec<WherePredicate> = Vec::new();
+    let discriminants = enum_info.discriminants();
+
+    let mut variant_arms = Vec::new();
+    for (variant, discriminant) in enum_info.variants.iter().zip(discriminants) {
+        let pattern = variant.pattern();
+        let (field_encodes, field_predicates) = common::encode_fields(
+            sakka,
+            &context_ty,
+            &error_ty,
+            &type_info.generics,
+            &variant.fields,
+            common::FieldAccessMode::Binding,
+        );
+        extra_predicates.extend(field_predicates);
+
+        variant_arms.push(quote! {
+            #pattern => {
+                let __discriminant: #tag_ty = (#discriminant);
+                #sakka::WritePrimitive::#write_tag(writer, __discriminant)?;
+                #(#field_encodes)*
+            }
+        });
+    }
+
+    let impl_generics = common::build_impl_generics(
+        &type_info.generics,
+        extra_predicates,
+        type_info.attrs.include_ctx_generic(),
+    );
+    let impl_params = &impl_generics.impl_generics;
+    let ty_params = &impl_generics.ty_generics;
+    let where_clause = &impl_generics.where_clause;
+
+    Ok(quote! {
+        impl #impl_params #sakka::Encode<#context_ty> for #name #ty_params #where_clause {
+            type Error = #error_ty;
+
+            fn encode(
+                &self,
+                writer: &mut #sakka::Writer<#context_ty>
+            ) -> Result<(), Self::Error> {
+                match self {
+                    #(#variant_arms),*
+                }
 
                 Ok(())
             }

@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Error, Expr, Field, GenericArgument, Ident, Index, PathArguments, Result, Type};
+use syn::{Error, Field, GenericArgument, Ident, Index, PathArguments, Result, Type};
 
 use crate::model::FieldAttrs;
 
@@ -16,20 +16,10 @@ pub enum FieldAccess {
     Index(Index),
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum FieldKind {
-    Value {
-        ty: Type,
-    },
-    Vec {
-        ty: Type,
-        elem: Type,
-    },
-    #[allow(dead_code)]
-    Array {
-        ty: Type,
-        elem: Type,
-        len: Expr,
-    },
+    Value { ty: Type },
+    Vec { ty: Type, elem: Type },
 }
 
 impl FieldInfo {
@@ -92,11 +82,6 @@ impl FieldInfo {
 impl FieldKind {
     pub fn from_field(field: &Field) -> Result<Self> {
         match &field.ty {
-            Type::Array(array) => Ok(FieldKind::Array {
-                ty: field.ty.clone(),
-                elem: (*array.elem).clone(),
-                len: array.len.clone(),
-            }),
             Type::Path(type_path) => {
                 // Check if this is Vec<T>
                 if let Some(segment) = type_path.path.segments.last()
@@ -117,7 +102,6 @@ impl FieldKind {
         match self {
             FieldKind::Value { ty } => ty,
             FieldKind::Vec { ty, .. } => ty,
-            FieldKind::Array { ty, .. } => ty,
         }
     }
 

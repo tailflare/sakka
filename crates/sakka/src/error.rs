@@ -14,4 +14,7 @@ pub enum Error {
 
     #[error("Collection length is negative")]
     CollectionLengthNegative,
+
+    #[error("Invalid enum discriminant")]
+    InvalidEnumDiscriminant,
 }

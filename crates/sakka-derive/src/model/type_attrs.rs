@@ -1,5 +1,7 @@
 use proc_macro2::TokenStream;
-use syn::{DeriveInput, Path, Result, Type, parse_quote};
+use syn::{Path, Result, Type, parse_quote};
+
+use crate::common;
 
 #[derive(Default, Clone)]
 pub struct TypeAttrs {
@@ -8,34 +10,8 @@ pub struct TypeAttrs {
 }
 
 impl TypeAttrs {
-    pub fn parse(input: &DeriveInput) -> Result<Self> {
-        let mut attrs = Self { error: None, context: None };
-
-        for attr in &input.attrs {
-            if !attr.path().is_ident("sakka") {
-                continue;
-            }
-
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("error") {
-                    if attrs.error.is_some() {
-                        return Err(meta.error("error already specified"));
-                    }
-                    attrs.error = Some(meta.value()?.parse()?);
-                } else if meta.path.is_ident("context") {
-                    if attrs.context.is_some() {
-                        return Err(meta.error("context already specified"));
-                    }
-                    attrs.context = Some(meta.value()?.parse()?);
-                } else {
-                    return Err(meta.error("unknown sakka attribute"));
-                }
-
-                Ok(())
-            })?;
-        }
-
-        Ok(attrs)
+    pub fn consume(pending: &mut common::PendingAttrs) -> Result<Self> {
+        Ok(Self { error: pending.take_path("error")?, context: pending.take_path("context")? })
     }
 
     pub fn error_type(&self, sakka: &TokenStream) -> Type {
@@ -49,7 +25,7 @@ impl TypeAttrs {
         self.context
             .clone()
             .map(|context| parse_quote!(#context))
-            .unwrap_or_else(|| parse_quote!(Ctx))
+            .unwrap_or_else(|| parse_quote!(__SakkaCtx))
     }
 
     pub fn include_ctx_generic(&self) -> bool {

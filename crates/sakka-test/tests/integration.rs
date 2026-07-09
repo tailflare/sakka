@@ -7,6 +7,7 @@ mod integration {
     mod custom_encoding;
     mod custom_encoding_error;
     mod custom_error;
+    mod r#enum;
     mod ignore;
     mod padding;
 }

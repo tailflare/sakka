@@ -1,4 +1,6 @@
 mod collection_attr;
+mod enum_attrs;
+mod enum_info;
 mod field_attrs;
 mod field_info;
 mod ignore_attr;
@@ -8,6 +10,8 @@ mod type_info;
 
 pub use self::{
     collection_attr::CollectionAttr,
+    enum_attrs::EnumAttrs,
+    enum_info::EnumInfo,
     field_attrs::FieldAttrs,
     field_info::{FieldAccess, FieldInfo, FieldKind},
     ignore_attr::IgnoreAttr,

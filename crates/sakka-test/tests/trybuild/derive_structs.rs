@@ -43,4 +43,29 @@ struct BasicConstGenericStruct<T, const N: usize> {
     values: [T; N],
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct GenericCtxCollision<Ctx> {
+    value: Ctx,
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+enum BasicEnum {
+    Unit,
+    Tuple(u16, bool),
+    Named { value: u8, ok: bool },
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+enum ExplicitEnum {
+    Explicit = 10,
+    AfterExplicit,
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+#[sakka(tag = u16)]
+enum WideTagEnum {
+    Small,
+    Big = 300,
+}
+
 fn main() {}

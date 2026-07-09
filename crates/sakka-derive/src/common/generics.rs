@@ -20,7 +20,7 @@ pub fn build_impl_generics(
 ) -> ImplGenerics {
     let mut impl_generics = generics.clone();
     if include_ctx {
-        impl_generics.params.insert(0, parse_quote!(Ctx));
+        impl_generics.params.insert(0, parse_quote!(__SakkaCtx));
     }
     impl_generics.make_where_clause().predicates.extend(extra_predicates);
 
