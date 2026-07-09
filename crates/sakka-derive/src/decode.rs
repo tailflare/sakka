@@ -49,6 +49,8 @@ fn expand_struct(
     let ty_params = &impl_generics.ty_generics;
     let where_clause = &impl_generics.where_clause;
 
+    let magic_decode = common::magic_stmt(sakka, type_info.attrs.magic.as_ref(), false);
+
     let construct = match struct_info.kind {
         StructKind::Named => {
             let fields = struct_info.fields.iter().map(|field| {
@@ -81,6 +83,7 @@ fn expand_struct(
             type Error = #error_ty;
 
             fn decode(reader: &mut #sakka::Reader<'_, #context_ty>) -> Result<Self, Self::Error> {
+                #magic_decode
                 #(#field_decodes)*
 
                 Ok(#construct)
@@ -132,11 +135,14 @@ fn expand_enum(
     let ty_params = &impl_generics.ty_generics;
     let where_clause = &impl_generics.where_clause;
 
+    let magic_decode = common::magic_stmt(sakka, type_info.attrs.magic.as_ref(), false);
+
     Ok(quote! {
         impl #impl_params #sakka::Decode<#context_ty> for #name #ty_params #where_clause {
             type Error = #error_ty;
 
             fn decode(reader: &mut #sakka::Reader<'_, #context_ty>) -> Result<Self, Self::Error> {
+                #magic_decode
                 let __discriminant: #tag_ty = #sakka::ReadPrimitive::#read_tag(reader)?;
                 match __discriminant {
                     #(#variant_arms),*

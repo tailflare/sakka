@@ -50,6 +50,8 @@ fn expand_struct(
     let ty_params = &impl_generics.ty_generics;
     let where_clause = &impl_generics.where_clause;
 
+    let magic_encode = common::magic_stmt(sakka, type_info.attrs.magic.as_ref(), true);
+
     Ok(quote! {
         impl #impl_params #sakka::Encode<#context_ty> for #name #ty_params #where_clause {
             type Error = #error_ty;
@@ -58,6 +60,7 @@ fn expand_struct(
                 &self,
                 writer: &mut #sakka::Writer<#context_ty>
             ) -> Result<(), Self::Error> {
+                #magic_encode
                 #(#field_encodes)*
 
                 Ok(())
@@ -111,6 +114,8 @@ fn expand_enum(
     let ty_params = &impl_generics.ty_generics;
     let where_clause = &impl_generics.where_clause;
 
+    let magic_encode = common::magic_stmt(sakka, type_info.attrs.magic.as_ref(), true);
+
     Ok(quote! {
         impl #impl_params #sakka::Encode<#context_ty> for #name #ty_params #where_clause {
             type Error = #error_ty;
@@ -119,6 +124,7 @@ fn expand_enum(
                 &self,
                 writer: &mut #sakka::Writer<#context_ty>
             ) -> Result<(), Self::Error> {
+                #magic_encode
                 match self {
                     #(#variant_arms),*
                 }

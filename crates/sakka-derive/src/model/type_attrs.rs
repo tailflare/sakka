@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use syn::{Path, Result, Type, parse_quote};
+use syn::{Expr, Path, Result, Type, parse_quote};
 
 use crate::common;
 
@@ -7,11 +7,16 @@ use crate::common;
 pub struct TypeAttrs {
     pub error: Option<Path>,
     pub context: Option<Path>,
+    pub magic: Option<Expr>,
 }
 
 impl TypeAttrs {
     pub fn consume(pending: &mut common::PendingAttrs) -> Result<Self> {
-        Ok(Self { error: pending.take_path("error")?, context: pending.take_path("context")? })
+        Ok(Self {
+            error: pending.take_path("error")?,
+            context: pending.take_path("context")?,
+            magic: pending.take_expr("magic")?,
+        })
     }
 
     pub fn error_type(&self, sakka: &TokenStream) -> Type {

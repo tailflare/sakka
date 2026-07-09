@@ -10,6 +10,7 @@ mod integration {
     mod custom_error;
     mod r#enum;
     mod ignore;
+    mod magic;
     mod optional;
     mod padding;
 }

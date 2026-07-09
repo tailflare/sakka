@@ -17,4 +17,7 @@ pub enum Error {
 
     #[error("Invalid enum discriminant")]
     InvalidEnumDiscriminant,
+
+    #[error("Invalid magic: {0}")]
+    InvalidMagic(&'static str),
 }

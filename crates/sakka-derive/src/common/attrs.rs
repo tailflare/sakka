@@ -1,6 +1,6 @@
 use alloc::{format, vec::Vec};
 
-use syn::{DeriveInput, Error, Path, Result};
+use syn::{DeriveInput, Error, Expr, Path, Result};
 
 pub struct PendingAttrs {
     entries: Vec<PendingAttr>,
@@ -9,7 +9,7 @@ pub struct PendingAttrs {
 #[derive(Clone)]
 struct PendingAttr {
     key: Path,
-    value: Option<Path>,
+    value: Option<Expr>,
 }
 
 impl PendingAttrs {
@@ -23,7 +23,7 @@ impl PendingAttrs {
 
             attr.parse_nested_meta(|meta| {
                 let value =
-                    if meta.input.is_empty() { None } else { Some(meta.value()?.parse::<Path>()?) };
+                    if meta.input.is_empty() { None } else { Some(meta.value()?.parse::<Expr>()?) };
 
                 entries.push(PendingAttr { key: meta.path.clone(), value });
                 Ok(())
@@ -33,7 +33,7 @@ impl PendingAttrs {
         Ok(Self { entries })
     }
 
-    pub fn take_path(&mut self, name: &str) -> Result<Option<Path>> {
+    fn take_value(&mut self, name: &str) -> Result<Option<Expr>> {
         let matches: Vec<_> = self
             .entries
             .iter()
@@ -57,6 +57,19 @@ impl PendingAttrs {
             Some(value) => Ok(Some(value)),
             None => Err(Error::new_spanned(&attr.key, format!("{name} requires a value"))),
         }
+    }
+
+    pub fn take_path(&mut self, name: &str) -> Result<Option<Path>> {
+        self.take_value(name)?
+            .map(|value| match value {
+                Expr::Path(expr_path) => Ok(expr_path.path),
+                _ => Err(Error::new_spanned(value, format!("{name} must be a path"))),
+            })
+            .transpose()
+    }
+
+    pub fn take_expr(&mut self, name: &str) -> Result<Option<Expr>> {
+        self.take_value(name)
     }
 
     pub fn ensure_empty(self) -> Result<()> {
