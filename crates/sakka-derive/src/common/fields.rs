@@ -137,6 +137,14 @@ fn encode_core(
                     )?;
                 }
             }
+            CollectionAttr::Field(_) => {
+                quote! {
+                    #sakka::WriteCollection::<#context_ty>::write_slice::<#elem_ty>(
+                        writer,
+                        #value_expr,
+                    )?;
+                }
+            }
             CollectionAttr::Prefix(prefix) => {
                 quote! {
                     #sakka::WriteCollection::<#context_ty>::write_prefixed_slice::<#elem_ty, #prefix>(
@@ -188,6 +196,14 @@ fn decode_core(
             CollectionAttr::Count(len) => {
                 quote! {
                     #sakka::ReadCollection::<#context_ty>::read_vec::<#elem_ty>(reader, #len)
+                }
+            }
+            CollectionAttr::Field(len_field) => {
+                quote! {
+                    #sakka::ReadCollection::<#context_ty>::read_vec::<#elem_ty>(
+                        reader,
+                        #sakka::CollectionLength::to_usize(#len_field)?,
+                    )
                 }
             }
             CollectionAttr::Prefix(prefix) => {

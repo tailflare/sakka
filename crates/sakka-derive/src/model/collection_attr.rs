@@ -1,9 +1,10 @@
-use syn::{Expr, Result, Type, meta::ParseNestedMeta};
+use syn::{Expr, Ident, Result, Type, meta::ParseNestedMeta};
 
 #[derive(Clone)]
 pub enum CollectionAttr {
     Count(Expr),
     Prefix(Type),
+    Field(Ident),
 }
 
 impl CollectionAttr {
@@ -19,6 +20,8 @@ impl CollectionAttr {
                 CollectionAttr::Count(meta.value()?.parse()?)
             } else if meta.path.is_ident("prefix") {
                 CollectionAttr::Prefix(meta.value()?.parse()?)
+            } else if meta.path.is_ident("field") {
+                CollectionAttr::Field(meta.value()?.parse()?)
             } else {
                 return Err(meta.error("unknown collection attribute"));
             });
@@ -27,7 +30,9 @@ impl CollectionAttr {
         })?;
 
         result.ok_or_else(|| {
-            meta.error("expected collection(count = ...) or collection(prefix = ...)")
+            meta.error(
+                "expected collection(count = ...), collection(prefix = ...), or collection(field = ...)",
+            )
         })
     }
 }

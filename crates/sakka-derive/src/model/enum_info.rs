@@ -2,9 +2,9 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DataEnum, Expr, Ident, Result};
+use syn::{DataEnum, Error, Expr, Field, Ident, Result};
 
-use crate::model::{EnumAttrs, FieldAccess, FieldInfo};
+use crate::model::{CollectionAttr, EnumAttrs, FieldAccess, FieldInfo};
 
 pub struct EnumInfo {
     pub attrs: EnumAttrs,
@@ -23,12 +23,13 @@ impl EnumInfo {
             .variants
             .iter()
             .map(|variant| {
-                let fields = variant
-                    .fields
-                    .iter()
-                    .enumerate()
-                    .map(|(i, field)| FieldInfo::parse(i, field))
-                    .collect::<Result<Vec<_>>>()?;
+                let mut fields = Vec::with_capacity(variant.fields.len());
+
+                for (i, field) in variant.fields.iter().enumerate() {
+                    let parsed = FieldInfo::parse(i, field)?;
+                    validate_collection_field_reference(field, &parsed, &fields)?;
+                    fields.push(parsed);
+                }
 
                 Ok(VariantInfo {
                     name: variant.ident.clone(),
@@ -56,6 +57,29 @@ impl EnumInfo {
 
         discriminants
     }
+}
+
+fn validate_collection_field_reference(
+    field: &Field,
+    parsed: &FieldInfo,
+    previous: &[FieldInfo],
+) -> Result<()> {
+    let Some(CollectionAttr::Field(reference)) = parsed.attrs.collection.as_ref() else {
+        return Ok(());
+    };
+
+    let is_previous_named_field = previous
+        .iter()
+        .any(|prev| matches!(&prev.access, FieldAccess::Named(name) if name == reference));
+
+    if is_previous_named_field {
+        return Ok(());
+    }
+
+    Err(Error::new_spanned(
+        field,
+        "collection(field = ...) must reference a previously declared named field",
+    ))
 }
 
 impl VariantInfo {

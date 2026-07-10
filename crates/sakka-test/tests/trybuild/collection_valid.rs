@@ -26,4 +26,11 @@ struct MultipleCollections {
     b: Vec<u16>,
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct CollectionWithField {
+    len: u8,
+    #[sakka(collection(field = len))]
+    data: Vec<u8>,
+}
+
 fn main() {}

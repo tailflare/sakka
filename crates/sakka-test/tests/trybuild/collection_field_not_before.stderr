@@ -1,0 +1,6 @@
+error: collection(field = ...) must reference a previously declared named field
+ --> tests/trybuild/collection_field_not_before.rs:5:5
+  |
+5 | /     #[sakka(collection(field = len))]
+6 | |     data: Vec<u8>,
+  | |_________________^
