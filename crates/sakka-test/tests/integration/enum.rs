@@ -1,5 +1,30 @@
 use sakka::{Decode, Encode, Endian, Error, Reader, Writer};
 
+struct ShiftedU32Codec;
+
+impl<Ctx> sakka::Codec<u32, Ctx> for ShiftedU32Codec {
+    type Error = Error;
+
+    fn encode(value: &u32, writer: &mut Writer<Ctx>) -> Result<(), Self::Error> {
+        writer.write(&value.wrapping_add(1))
+    }
+
+    fn decode(reader: &mut Reader<'_, Ctx>) -> Result<u32, Self::Error> {
+        Ok(reader.read::<u32>()?.wrapping_sub(1))
+    }
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+#[sakka(tag = u8)]
+#[repr(u8)]
+enum NamedCodecEnum {
+    Config {
+        #[sakka(codec = ShiftedU32Codec)]
+        slot: u32,
+    } = 0,
+    Other(u8) = 1,
+}
+
 #[derive(Debug, PartialEq, Encode, Decode)]
 enum BasicEnum {
     Unit,
@@ -111,4 +136,20 @@ fn wide_enum_tag_writes_and_reads_u16_discriminants() {
 
     assert_eq!(small, WideTagEnum::Small);
     assert_eq!(big, WideTagEnum::Big);
+}
+
+#[test]
+fn named_variant_field_codec_controls_payload_encoding() {
+    let value = NamedCodecEnum::Config { slot: 0x1234_5678 };
+
+    let mut writer = Writer::new(Endian::Little, ());
+    writer.write(&value).unwrap();
+
+    let bytes = writer.finish();
+    assert_eq!(bytes, vec![0, 0x79, 0x56, 0x34, 0x12]);
+
+    let mut reader = Reader::new(&bytes, Endian::Little, ());
+    let decoded: NamedCodecEnum = reader.read().unwrap();
+
+    assert_eq!(decoded, value);
 }
