@@ -1,6 +1,6 @@
-use syn::{Expr, Field, Ident, Path, Result};
+use syn::{Expr, Field, Path, Result};
 
-use crate::model::{CollectionAttr, IgnoreAttr, OptionalAttr};
+use crate::model::{CollectionAttr, IgnoreAttr, OptionalAttr, StoreAttr};
 
 #[derive(Default, Clone)]
 pub struct FieldAttrs {
@@ -14,7 +14,7 @@ pub struct FieldAttrs {
     pub pad_after: Option<Expr>,
     pub collection: Option<CollectionAttr>,
     pub optional: Option<OptionalAttr>,
-    pub store: Option<Ident>,
+    pub store: Option<StoreAttr>,
 }
 
 impl FieldAttrs {
@@ -93,7 +93,7 @@ impl FieldAttrs {
                     if attrs.store.is_some() {
                         return Err(meta.error("store already specified"));
                     }
-                    attrs.store = Some(meta.value()?.parse()?);
+                    attrs.store = Some(StoreAttr::parse(&meta)?);
                 } else {
                     return Err(meta.error("unknown sakka attribute"));
                 }

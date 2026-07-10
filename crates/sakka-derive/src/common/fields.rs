@@ -68,6 +68,9 @@ fn maybe_store_encoded_field(
         return body;
     };
 
+    let store_field = &store.field;
+    let store_expr = &store.expr;
+
     let field_ty = field.kind.ty();
     if common::type_depends_on_generics(field_ty, generics) {
         extra_predicates.push(parse_quote!(#field_ty: ::core::clone::Clone));
@@ -75,7 +78,8 @@ fn maybe_store_encoded_field(
 
     quote! {
         #body
-        writer.context_mut().#store = ::core::clone::Clone::clone(#value_ref);
+        let value = ::core::clone::Clone::clone(#value_ref);
+        writer.context_mut().#store_field = #store_expr;
     }
 }
 
@@ -90,6 +94,9 @@ fn maybe_store_decoded_field(
         return body;
     };
 
+    let store_field = &store.field;
+    let store_expr = &store.expr;
+
     let field_ty = field.kind.ty();
     if common::type_depends_on_generics(field_ty, generics) {
         extra_predicates.push(parse_quote!(#field_ty: ::core::clone::Clone));
@@ -97,7 +104,8 @@ fn maybe_store_decoded_field(
 
     quote! {
         #body
-        reader.context_mut().#store = ::core::clone::Clone::clone(&#local);
+        let value = ::core::clone::Clone::clone(&#local);
+        reader.context_mut().#store_field = #store_expr;
     }
 }
 
