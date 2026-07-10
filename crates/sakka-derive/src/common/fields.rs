@@ -286,6 +286,7 @@ pub fn encode_fields(
                 OptionalAttr::Bool => {
                     let wrapped = common::wrap_optional(
                         sakka,
+                        error_ty,
                         quote!(writer),
                         optional.clone(),
                         inner_core,
@@ -306,6 +307,7 @@ pub fn encode_fields(
                     let with_layout = wrap_layout(quote!(writer), field, inner_core, true);
                     let wrapped = common::wrap_optional(
                         sakka,
+                        error_ty,
                         quote!(writer),
                         optional.clone(),
                         with_layout,
@@ -395,6 +397,7 @@ pub fn decode_fields(
                 OptionalAttr::Bool => {
                     let with_optional = common::wrap_optional(
                         sakka,
+                        error_ty,
                         quote!(reader),
                         optional.clone(),
                         inner_core,
@@ -422,6 +425,7 @@ pub fn decode_fields(
 
                     common::wrap_optional(
                         sakka,
+                        error_ty,
                         quote!(reader),
                         optional.clone(),
                         quote! {

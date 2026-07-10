@@ -13,6 +13,7 @@ fn derive_cases() {
     t.pass("tests/trybuild/ignore_valid.rs");
     t.pass("tests/trybuild/store_valid.rs");
     t.pass("tests/trybuild/optional_valid.rs");
+    t.pass("tests/trybuild/optional_bool_custom_error_valid.rs");
     t.pass("tests/trybuild/optional_collection_valid.rs");
 
     t.compile_fail("tests/trybuild/derive_non_derived.rs");

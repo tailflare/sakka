@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Expr, Lit};
+use syn::{Expr, Lit, Type};
 
 use crate::model::OptionalAttr;
 
@@ -73,6 +73,7 @@ pub fn wrap_padding(
 
 pub fn wrap_optional(
     sakka: &TokenStream,
+    error_ty: &Type,
     receiver: TokenStream,
     attr: OptionalAttr,
     body: TokenStream,
@@ -81,10 +82,10 @@ pub fn wrap_optional(
     match (attr, is_writer) {
         (OptionalAttr::Bool, true) => {
             quote! {
-                #sakka::WriteOption::write_option_with(
+                #sakka::WriteOption::write_option_with::<_, #error_ty, _>(
                     #receiver,
                     __sakka_optional_value,
-                    |#receiver, __sakka_optional_inner| {
+                    |#receiver, __sakka_optional_inner| -> Result<(), #error_ty> {
                         #body
                         Ok(())
                     },
@@ -93,7 +94,12 @@ pub fn wrap_optional(
         }
         (OptionalAttr::Bool, false) => {
             quote! {
-                #sakka::ReadOption::read_option_with(#receiver, |#receiver| #body)?
+                #sakka::ReadOption::read_option_with::<_, #error_ty, _>(
+                    #receiver,
+                    |#receiver| -> Result<_, #error_ty> {
+                        (#body).map_err(::core::convert::Into::into)
+                    },
+                )?
             }
         }
         (OptionalAttr::Eof, true) => {
