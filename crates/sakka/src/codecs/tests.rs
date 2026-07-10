@@ -1,6 +1,6 @@
 use alloc::vec;
 
-use super::{ArrayCodec, Codec, OptionBoolCodec, OptionEofCodec, VecPrefixCodec};
+use super::{ArrayCodec, Codec, DerivedCodec, OptionBoolCodec, OptionEofCodec, VecPrefixCodec};
 use crate::{Decode, Encode, Endian, Error, Reader, Writer};
 
 #[derive(Debug)]
@@ -40,6 +40,28 @@ struct TestRecord {
     id: u16,
     tag: u8,
     active: bool,
+}
+
+#[derive(Clone, Copy)]
+struct TestCtx;
+
+#[derive(Debug, PartialEq, Eq)]
+struct ContextRecord(u16);
+
+impl Encode<TestCtx> for ContextRecord {
+    type Error = Error;
+
+    fn encode(&self, w: &mut Writer<TestCtx>) -> Result<(), Self::Error> {
+        w.write(&self.0)
+    }
+}
+
+impl Decode<TestCtx> for ContextRecord {
+    type Error = Error;
+
+    fn decode(r: &mut Reader<'_, TestCtx>) -> Result<Self, Self::Error> {
+        Ok(Self(r.read()?))
+    }
 }
 
 impl Encode for TestRecord {
@@ -181,5 +203,21 @@ fn option_eof_codec_roundtrip_with_inner_codec() {
 
     assert_eq!(some_value, Some(true));
     assert_eq!(none_value, None);
+    assert!(reader.is_eof());
+}
+
+#[test]
+fn derived_codec_roundtrips_with_custom_context() {
+    let value = ContextRecord(0xBEEF);
+
+    let mut writer = Writer::new(Endian::Big, TestCtx);
+    DerivedCodec::<ContextRecord>::encode(&value, &mut writer).unwrap();
+    let bytes = writer.finish();
+    assert_eq!(bytes, [0xBE, 0xEF]);
+
+    let mut reader = Reader::new(&bytes, Endian::Big, TestCtx);
+    let decoded = DerivedCodec::<ContextRecord>::decode(&mut reader).unwrap();
+
+    assert_eq!(decoded, value);
     assert!(reader.is_eof());
 }

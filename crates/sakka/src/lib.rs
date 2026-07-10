@@ -13,7 +13,7 @@ mod rw;
 pub use sakka_derive::{Decode, Encode};
 
 pub use self::{
-    codecs::{ArrayCodec, Codec, OptionBoolCodec, OptionEofCodec, VecPrefixCodec},
+    codecs::{ArrayCodec, Codec, DerivedCodec, OptionBoolCodec, OptionEofCodec, VecPrefixCodec},
     common::Endian,
     encoding::{Decode, Encode},
     error::Error,
