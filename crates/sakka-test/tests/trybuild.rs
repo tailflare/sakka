@@ -21,6 +21,7 @@ fn derive_cases() {
     t.compile_fail("tests/trybuild/collection_duplicate_attr.rs");
     t.compile_fail("tests/trybuild/collection_with_codec_dupe.rs");
     t.compile_fail("tests/trybuild/collection_field_not_before.rs");
+    t.compile_fail("tests/trybuild/enum_variant_sakka_attr.rs");
     t.compile_fail("tests/trybuild/alignment_duplicate_attr.rs");
     t.compile_fail("tests/trybuild/padding_dupe.rs");
     t.compile_fail("tests/trybuild/custom_codec_dupe.rs");

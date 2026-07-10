@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DataEnum, Error, Expr, Field, Ident, Result};
+use syn::{Attribute, DataEnum, Error, Expr, Field, Ident, Result};
 
 use crate::model::{CollectionAttr, EnumAttrs, FieldAccess, FieldInfo};
 
@@ -23,6 +23,7 @@ impl EnumInfo {
             .variants
             .iter()
             .map(|variant| {
+                reject_variant_sakka_attrs(&variant.attrs)?;
                 let mut fields = Vec::with_capacity(variant.fields.len());
 
                 for (i, field) in variant.fields.iter().enumerate() {
@@ -57,6 +58,19 @@ impl EnumInfo {
 
         discriminants
     }
+}
+
+fn reject_variant_sakka_attrs(attrs: &[Attribute]) -> Result<()> {
+    for attr in attrs {
+        if attr.path().is_ident("sakka") {
+            return Err(Error::new_spanned(
+                attr,
+                "enum variants cannot use #[sakka(...)] attributes",
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_collection_field_reference(

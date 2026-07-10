@@ -1,0 +1,5 @@
+error: enum variants cannot use #[sakka(...)] attributes
+ --> tests/trybuild/enum_variant_sakka_attr.rs:6:5
+  |
+6 |     #[sakka(codec = ByteCodec)]
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
