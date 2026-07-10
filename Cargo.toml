@@ -3,15 +3,15 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.0.14"
+version = "0.0.15"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/tailflare/sakka"
 include = ["src/**", "README.md", "LICENSE*"]
 
 [workspace.dependencies]
-sakka = { version = "0.0.14", path = "crates/sakka", default-features = false }
-sakka-derive = { version = "0.0.14", path = "crates/sakka-derive" }
+sakka = { version = "0.0.15", path = "crates/sakka", default-features = false }
+sakka-derive = { version = "0.0.15", path = "crates/sakka-derive" }
 
 pastey = { version = "0.2.3" }
 thiserror = { version = "2.0.18", default-features = false }
