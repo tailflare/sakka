@@ -53,7 +53,9 @@ impl FieldInfo {
     }
 
     fn validate(field: &Field, kind: &FieldKind, attrs: &FieldAttrs) -> Result<()> {
-        if attrs.ignore.is_some() && attrs.codec.is_some() {
+        let is_codec = attrs.codec.is_some();
+
+        if attrs.ignore.is_some() && is_codec {
             return Err(Error::new_spanned(
                 field,
                 "Cannot use #[sakka(ignore)] with #[sakka(codec(...))]",
@@ -67,20 +69,27 @@ impl FieldInfo {
             ));
         }
 
+        if attrs.collection.is_some() && is_codec {
+            return Err(Error::new_spanned(
+                field,
+                "Cannot use #[sakka(collection(...))] with #[sakka(codec(...))]",
+            ));
+        }
+
         let is_vec = matches!(kind, FieldKind::Vec { .. });
         let is_optional_vec = match kind {
             FieldKind::Option { inner, .. } => common::generic_inner_type(inner, "Vec").is_some(),
             _ => false,
         };
 
-        if is_vec && attrs.collection.is_none() {
+        if is_vec && attrs.collection.is_none() && !is_codec {
             return Err(Error::new_spanned(
                 field,
                 "Vec fields must have a #[sakka(collection(...))] attribute",
             ));
         }
 
-        if is_optional_vec && attrs.optional.is_some() && attrs.collection.is_none() {
+        if is_optional_vec && attrs.optional.is_some() && attrs.collection.is_none() && !is_codec {
             return Err(Error::new_spanned(
                 field,
                 "Option<Vec<_>> fields with #[sakka(optional(...))] must also have a #[sakka(collection(...))] attribute",

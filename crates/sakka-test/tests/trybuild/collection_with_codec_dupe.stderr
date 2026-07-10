@@ -1,0 +1,6 @@
+error: Cannot use #[sakka(collection(...))] with #[sakka(codec(...))]
+  --> tests/trybuild/collection_with_codec_dupe.rs:19:5
+   |
+19 | /     #[sakka(codec = U8Codec, collection(count = 2))]
+20 | |     value: u8,
+   | |_____________^

@@ -8,10 +8,10 @@ use crate::{
 
 pub struct VecPrefixCodec<L, C>(PhantomData<(L, C)>);
 
-impl<L, C, T, Ctx> Codec<Vec<T>, Ctx> for VecPrefixCodec<L, C>
+impl<C, T, L, Ctx> Codec<Vec<T>, Ctx> for VecPrefixCodec<L, C>
 where
-    L: Decode<Ctx, Error = Error> + Encode<Ctx, Error = Error> + CollectionLength,
     C: Codec<T, Ctx>,
+    L: Decode<Ctx, Error = Error> + Encode<Ctx, Error = Error> + CollectionLength,
 {
     type Error = C::Error;
 
@@ -22,8 +22,6 @@ where
 
     #[inline]
     fn decode(reader: &mut Reader<'_, Ctx>) -> Result<Vec<T>, Self::Error> {
-        let len: L = reader.read()?;
-        let len_usize = len.to_usize()?;
-        reader.read_vec_with(len_usize, |r| C::decode(r))
+        reader.read_prefixed_vec_with::<_, L, _, _>(|r| C::decode(r))
     }
 }
