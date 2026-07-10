@@ -33,4 +33,13 @@ struct CollectionWithField {
     data: Vec<u8>,
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+#[allow(unused_variables)]
+struct CollectionWithComputedField {
+    #[sakka(computed = data.len() as u8)]
+    len: u8,
+    #[sakka(collection(field = len))]
+    data: Vec<u8>,
+}
+
 fn main() {}

@@ -266,6 +266,30 @@ pub fn encode_fields(
             FieldAccessMode::Binding => quote!(#access),
         };
 
+        let encode_value_ref = if let Some(computed) = field.attrs.computed.as_ref() {
+            match access_mode {
+                FieldAccessMode::SelfAccess => {
+                    let aliases = fields.iter().map(|alias_field| match &alias_field.access {
+                        crate::model::FieldAccess::Named(name) => {
+                            quote!(#[allow(unused_variables)] let #name = &self.#name;)
+                        }
+                        crate::model::FieldAccess::Index(index) => {
+                            let local = &alias_field.local;
+                            quote!(#[allow(unused_variables)] let #local = &self.#index;)
+                        }
+                    });
+
+                    quote!(&{
+                        #(#aliases)*
+                        #computed
+                    })
+                }
+                FieldAccessMode::Binding => quote!(&(#computed)),
+            }
+        } else {
+            access_ref.clone()
+        };
+
         if let Some(optional) = &field.attrs.optional {
             let inner_ty = match &field.kind {
                 FieldKind::Option { inner, .. } => inner,
@@ -301,7 +325,7 @@ pub fn encode_fields(
                         quote!(writer),
                         field,
                         quote! {
-                            let __sakka_optional_value = #access_ref;
+                            let __sakka_optional_value = #encode_value_ref;
                             #wrapped
                         },
                         true,
@@ -319,7 +343,7 @@ pub fn encode_fields(
                     );
 
                     quote! {
-                        let __sakka_optional_value = #access_ref;
+                        let __sakka_optional_value = #encode_value_ref;
                         #wrapped
                     }
                 }
@@ -343,7 +367,7 @@ pub fn encode_fields(
             error_ty,
             generics,
             field.kind.ty(),
-            access_ref.clone(),
+            encode_value_ref.clone(),
             field.attrs.codec.as_ref(),
             collection,
             &mut extra_predicates,
@@ -352,7 +376,7 @@ pub fn encode_fields(
         let body = wrap_layout(quote!(writer), field, core, true);
         field_encodes.push(maybe_store_encoded_field(
             field,
-            access_ref,
+            encode_value_ref,
             body,
             generics,
             &mut extra_predicates,

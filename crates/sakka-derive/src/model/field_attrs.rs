@@ -6,6 +6,7 @@ use crate::model::{CollectionAttr, IgnoreAttr, OptionalAttr, StoreAttr};
 pub struct FieldAttrs {
     pub ignore: Option<IgnoreAttr>,
     pub codec: Option<Path>,
+    pub computed: Option<Expr>,
     pub align_before: Option<Expr>,
     pub align_after: Option<Expr>,
     pub pad_before: Option<Expr>,
@@ -20,6 +21,7 @@ impl FieldAttrs {
         let mut attrs = Self {
             ignore: None,
             codec: None,
+            computed: None,
             align_before: None,
             align_after: None,
             pad_before: None,
@@ -45,6 +47,11 @@ impl FieldAttrs {
                         return Err(meta.error("codec already specified"));
                     }
                     attrs.codec = Some(meta.value()?.parse()?);
+                } else if meta.path.is_ident("computed") {
+                    if attrs.computed.is_some() {
+                        return Err(meta.error("computed already specified"));
+                    }
+                    attrs.computed = Some(meta.value()?.parse()?);
                 } else if meta.path.is_ident("align_before") {
                     if attrs.align_before.is_some() {
                         return Err(meta.error("align_before already specified"));

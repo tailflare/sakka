@@ -60,6 +60,13 @@ impl FieldInfo {
             ));
         }
 
+        if attrs.ignore.is_some() && attrs.computed.is_some() {
+            return Err(Error::new_spanned(
+                field,
+                "Cannot use #[sakka(ignore)] with #[sakka(computed = ...)]",
+            ));
+        }
+
         let is_vec = matches!(kind, FieldKind::Vec { .. });
         let is_optional_vec = match kind {
             FieldKind::Option { inner, .. } => common::generic_inner_type(inner, "Vec").is_some(),

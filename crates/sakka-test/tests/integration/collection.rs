@@ -24,6 +24,14 @@ struct CollectionFieldCount {
     b: Vec<u8>,
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct CollectionComputedCount {
+    #[sakka(computed = b.len() as u8)]
+    count: u8,
+    #[sakka(collection(field = count))]
+    b: Vec<u8>,
+}
+
 #[test]
 fn round_trip_collection_with_prefix() {
     let value = CollectionPrefix { b: vec![0x12, 0x34, 0x56, 0x78, 0xAB] };
@@ -97,4 +105,24 @@ fn round_trip_collection_with_field_count() {
     let decoded: CollectionFieldCount = reader.read().unwrap();
 
     assert_eq!(decoded, value);
+}
+
+#[test]
+fn encode_uses_computed_field_value() {
+    let value = CollectionComputedCount { count: 0, b: vec![0x12, 0x34, 0x56] };
+
+    let mut writer = Writer::new(Endian::Little, ());
+    writer.write(&value).unwrap();
+
+    let bytes = writer.finish();
+
+    // Computed count should be derived from b.len() (3), not from value.count (0).
+    assert_eq!(bytes, vec![0x03, 0x12, 0x34, 0x56]);
+
+    let mut reader = Reader::new(&bytes, Endian::Little, ());
+    let decoded: CollectionComputedCount = reader.read().unwrap();
+
+    // Decode reads the on-wire count normally.
+    assert_eq!(decoded.count, 3);
+    assert_eq!(decoded.b, vec![0x12, 0x34, 0x56]);
 }
