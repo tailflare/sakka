@@ -53,19 +53,10 @@ impl FieldInfo {
     }
 
     fn validate(field: &Field, kind: &FieldKind, attrs: &FieldAttrs) -> Result<()> {
-        if attrs.ignore.is_some()
-            && (attrs.codec.is_some() || attrs.decode_with.is_some() || attrs.encode_with.is_some())
-        {
+        if attrs.ignore.is_some() && attrs.codec.is_some() {
             return Err(Error::new_spanned(
                 field,
-                "Cannot use #[sakka(ignore)] with #[sakka(codec(...))], #[sakka(decode_with(...))] or #[sakka(encode_with(...))]",
-            ));
-        }
-
-        if attrs.codec.is_some() && (attrs.decode_with.is_some() || attrs.encode_with.is_some()) {
-            return Err(Error::new_spanned(
-                field,
-                "Cannot use #[sakka(codec(...))] with #[sakka(decode_with(...))] or #[sakka(encode_with(...))]",
+                "Cannot use #[sakka(ignore)] with #[sakka(codec(...))]",
             ));
         }
 

@@ -6,8 +6,6 @@ use crate::model::{CollectionAttr, IgnoreAttr, OptionalAttr, StoreAttr};
 pub struct FieldAttrs {
     pub ignore: Option<IgnoreAttr>,
     pub codec: Option<Path>,
-    pub encode_with: Option<Path>,
-    pub decode_with: Option<Path>,
     pub align_before: Option<Expr>,
     pub align_after: Option<Expr>,
     pub pad_before: Option<Expr>,
@@ -22,8 +20,6 @@ impl FieldAttrs {
         let mut attrs = Self {
             ignore: None,
             codec: None,
-            encode_with: None,
-            decode_with: None,
             align_before: None,
             align_after: None,
             pad_before: None,
@@ -49,16 +45,6 @@ impl FieldAttrs {
                         return Err(meta.error("codec already specified"));
                     }
                     attrs.codec = Some(meta.value()?.parse()?);
-                } else if meta.path.is_ident("encode_with") {
-                    if attrs.encode_with.is_some() {
-                        return Err(meta.error("encode_with already specified"));
-                    }
-                    attrs.encode_with = Some(meta.value()?.parse()?);
-                } else if meta.path.is_ident("decode_with") {
-                    if attrs.decode_with.is_some() {
-                        return Err(meta.error("decode_with already specified"));
-                    }
-                    attrs.decode_with = Some(meta.value()?.parse()?);
                 } else if meta.path.is_ident("align_before") {
                     if attrs.align_before.is_some() {
                         return Err(meta.error("align_before already specified"));

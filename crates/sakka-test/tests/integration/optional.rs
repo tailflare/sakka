@@ -1,22 +1,8 @@
-use sakka::{Decode, Encode, Endian, Error, ReadPrimitive, Reader, WritePrimitive, Writer};
-
-fn encode_u16<Ctx>(writer: &mut Writer<Ctx>, value: &u16) -> Result<(), Error> {
-    writer.write_u16(*value)
-}
-
-fn decode_u16<Ctx>(reader: &mut Reader<'_, Ctx>) -> Result<u16, Error> {
-    reader.read_u16()
-}
+use sakka::{Decode, Encode, Endian, Reader, Writer};
 
 #[derive(Debug, PartialEq, Encode, Decode)]
 struct OptionalBool {
     #[sakka(optional(bool))]
-    value: Option<u16>,
-}
-
-#[derive(Debug, PartialEq, Encode, Decode)]
-struct OptionalBoolCustom {
-    #[sakka(optional(bool), encode_with = encode_u16, decode_with = decode_u16)]
     value: Option<u16>,
 }
 
@@ -53,26 +39,6 @@ fn round_trip_optional_bool_some_and_none() {
     let mut reader = Reader::new(&bytes, Endian::Little, ());
     let decoded_some: OptionalBool = reader.read().unwrap();
     let decoded_none: OptionalBool = reader.read().unwrap();
-
-    assert_eq!(decoded_some, some);
-    assert_eq!(decoded_none, none);
-}
-
-#[test]
-fn round_trip_optional_bool_with_custom_encoding() {
-    let some = OptionalBoolCustom { value: Some(0xCAFE) };
-    let none = OptionalBoolCustom { value: None };
-
-    let mut writer = Writer::new(Endian::Little, ());
-    writer.write(&some).unwrap();
-    writer.write(&none).unwrap();
-    let bytes = writer.finish();
-
-    assert_eq!(bytes, vec![1, 0xFE, 0xCA, 0]);
-
-    let mut reader = Reader::new(&bytes, Endian::Little, ());
-    let decoded_some: OptionalBoolCustom = reader.read().unwrap();
-    let decoded_none: OptionalBoolCustom = reader.read().unwrap();
 
     assert_eq!(decoded_some, some);
     assert_eq!(decoded_none, none);

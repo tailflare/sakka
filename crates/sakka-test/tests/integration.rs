@@ -5,8 +5,6 @@ mod integration {
     mod complex;
     mod context_store;
     mod custom_codec;
-    mod custom_encoding;
-    mod custom_encoding_error;
     mod custom_error;
     mod r#enum;
     mod ignore;

@@ -118,17 +118,21 @@ fn encode_core(
     value_ty: &Type,
     value_expr: TokenStream,
     codec: Option<&Path>,
-    encode_with: Option<&Path>,
     collection: Option<(&CollectionAttr, Type)>,
     extra_predicates: &mut Vec<WherePredicate>,
 ) -> TokenStream {
     if let Some(codec) = codec {
-        quote! {
-            #codec::encode(#value_expr, writer)?;
+        if common::type_depends_on_generics(value_ty, generics) {
+            extra_predicates.push(
+                parse_quote!( #codec: #sakka::Codec<#value_ty, #context_ty, Error = #error_ty>),
+            );
         }
-    } else if let Some(encode_with) = encode_with {
+
         quote! {
-            #encode_with(writer, #value_expr)?;
+            <#codec as #sakka::Codec<#value_ty, #context_ty>>::encode(
+                #value_expr,
+                writer,
+            )?;
         }
     } else if let Some((collection, elem_ty)) = collection {
         if common::type_depends_on_generics(&elem_ty, generics) {
@@ -182,17 +186,18 @@ fn decode_core(
     generics: &Generics,
     value_ty: &Type,
     codec: Option<&Path>,
-    decode_with: Option<&Path>,
     collection: Option<(&CollectionAttr, Type)>,
     extra_predicates: &mut Vec<WherePredicate>,
 ) -> TokenStream {
     if let Some(codec) = codec {
-        quote! {
-            #codec::decode(reader)
+        if common::type_depends_on_generics(value_ty, generics) {
+            extra_predicates.push(
+                parse_quote!( #codec: #sakka::Codec<#value_ty, #context_ty, Error = #error_ty>),
+            );
         }
-    } else if let Some(decode_with) = decode_with {
+
         quote! {
-            #decode_with(reader)
+             <#codec as #sakka::Codec<#value_ty, #context_ty>>::decode(reader)
         }
     } else if let Some((collection, elem_ty)) = collection {
         if common::type_depends_on_generics(&elem_ty, generics) {
@@ -277,7 +282,6 @@ pub fn encode_fields(
                 inner_ty,
                 quote!(__sakka_optional_inner),
                 field.attrs.codec.as_ref(),
-                field.attrs.encode_with.as_ref(),
                 optional_collection,
                 &mut extra_predicates,
             );
@@ -341,7 +345,6 @@ pub fn encode_fields(
             field.kind.ty(),
             access_ref.clone(),
             field.attrs.codec.as_ref(),
-            field.attrs.encode_with.as_ref(),
             collection,
             &mut extra_predicates,
         );
@@ -388,7 +391,6 @@ pub fn decode_fields(
                 generics,
                 inner_ty,
                 field.attrs.codec.as_ref(),
-                field.attrs.decode_with.as_ref(),
                 optional_collection,
                 &mut extra_predicates,
             );
@@ -490,7 +492,6 @@ pub fn decode_fields(
                 generics,
                 ty,
                 field.attrs.codec.as_ref(),
-                field.attrs.decode_with.as_ref(),
                 collection,
                 &mut extra_predicates,
             );
