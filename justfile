@@ -22,8 +22,6 @@ sanitize:
 sanity:
     @just validate
     @just build std
-    @just build std
-    @just build no-std
     @just build no-std
     @just test std -- --quiet
     @just test no-std -- --quiet
