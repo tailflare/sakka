@@ -120,7 +120,11 @@ fn type_path_mentions_any_type_param(
             }
 
             PathArguments::Parenthesized(args) => {
-                if args.inputs.iter().any(|ty| type_mentions_any_type_param(ty, type_param_names)) {
+                if args
+                    .inputs
+                    .iter()
+                    .any(|arg| type_mentions_any_type_param(&arg.ty, type_param_names))
+                {
                     return true;
                 }
 
